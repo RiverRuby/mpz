@@ -61,7 +61,7 @@ impl IdealSpcot {
             self.counter += n;
         }
 
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (SPCOTSenderOutput { id, v }, SPCOTReceiverOutput { id, w })
     }

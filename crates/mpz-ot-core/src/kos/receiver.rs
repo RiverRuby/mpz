@@ -330,7 +330,7 @@ impl Receiver<state::Extension> {
             ));
         }
 
-        let id = self.state.transfer_id.next();
+        let id = self.state.transfer_id.next_id();
         let index = self.state.index - self.state.keys.len();
 
         Ok(ReceiverKeys {

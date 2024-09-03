@@ -55,7 +55,7 @@ impl IdealOT {
 
         self.counter += choices.len();
         self.choices.extend(choices);
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (OTSenderOutput { id }, OTReceiverOutput { id, msgs: chosen })
     }

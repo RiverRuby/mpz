@@ -68,7 +68,7 @@ impl IdealROT {
             .collect();
 
         self.counter += count;
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (
             ROTSenderOutput { id, msgs },
@@ -103,7 +103,7 @@ impl IdealROT {
             .collect();
 
         self.counter += choices.len();
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (
             ROTSenderOutput { id, msgs },

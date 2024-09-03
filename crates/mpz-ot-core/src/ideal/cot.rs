@@ -76,7 +76,7 @@ impl IdealCOT {
             .collect();
 
         self.counter += count;
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (
             RCOTSenderOutput { id, msgs },

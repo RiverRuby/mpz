@@ -60,7 +60,7 @@ impl IdealMpcot {
             self.counter += 1;
         }
 
-        let id = self.transfer_id.next();
+        let id = self.transfer_id.next_id();
 
         (MPCOTSenderOutput { id, s }, MPCOTReceiverOutput { id, r })
     }

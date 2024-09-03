@@ -294,7 +294,7 @@ impl Sender<state::Extension> {
             return Err(SenderError::InsufficientSetup(count, self.state.keys.len()));
         }
 
-        let id = self.state.transfer_id.next();
+        let id = self.state.transfer_id.next_id();
 
         Ok(SenderKeys {
             id,

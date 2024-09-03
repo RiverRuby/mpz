@@ -139,7 +139,7 @@ impl Sender<state::Setup> {
         } = receiver_payload;
 
         // Check that the transfer id matches
-        let expected_id = current_id.next();
+        let expected_id = current_id.next_id();
         if id != expected_id {
             return Err(SenderError::IdMismatch(expected_id, id));
         }
