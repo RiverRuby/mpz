@@ -165,7 +165,8 @@ impl Prover {
         (u, v)
     }
 
-    // set the LSB of the block to as the bit.
+    // Set the LSB of the block to as the bit.
+    // This assumes the lsb of delta is 1.
     #[inline]
     fn set_value(block: Block, b: bool) -> Block {
         (block & Block::MINIS_ONE) ^ (if b { Block::ONE } else { Block::ZERO })

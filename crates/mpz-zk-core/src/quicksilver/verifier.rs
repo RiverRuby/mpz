@@ -156,7 +156,13 @@ impl Verifier {
         self.counter = 0;
     }
 
+    /// Returns the and_check results.
+    pub fn checked(&self) -> bool {
+        self.and_gate_checked
+    }
+
     // Set the lsb of the block to zero.
+    // This assumes the lsb of delta is 1.
     #[inline]
     fn set_zero(block: Block) -> Block {
         block & Block::MINIS_ONE
