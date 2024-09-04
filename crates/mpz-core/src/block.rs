@@ -7,6 +7,7 @@ use generic_array::{typenum::consts::U16, GenericArray};
 use itybity::{BitIterable, BitLength, GetBit, Lsb0, Msb0};
 use rand::{distributions::Standard, prelude::Distribution, CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
+use std::iter::successors;
 
 /// A block of 128 bits
 #[repr(transparent)]
@@ -22,6 +23,11 @@ impl Block {
     pub const ONE: Self = Self([1u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     /// A block with all bits set to 1
     pub const ONES: Self = Self([0xff; 16]);
+    /// A block with all 1 bits excect the lsb.
+    pub const MINIS_ONE: Block = Self([
+        0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff,
+    ]);
     /// A length 2 array of zero and one blocks
     pub const SELECT_MASK: [Self; 2] = [Self::ZERO, Self::ONES];
 
@@ -121,6 +127,14 @@ impl Block {
         let mut x: [u64; 2] = bytemuck::cast(a);
         x[0] ^= x[1];
         bytemuck::cast([x[1], x[0]])
+    }
+
+    /// Generate the powers of the seed.
+    #[inline(always)]
+    pub fn powers(seed: Self, size: usize) -> Vec<Self> {
+        successors(Some(Block::ONE), |pow| Some(pow.gfmul(seed)))
+            .take(size)
+            .collect()
     }
 
     /// Converts a block to a [`GenericArray<u8, U16>`](cipher::generic_array::GenericArray)

@@ -13,13 +13,16 @@ mod tests {
     use futures::TryFutureExt;
     use mpz_common::executor::test_st_executor;
     use mpz_core::Block;
-    use mpz_ot::ideal::cot::{ideal_rcot, IdealCOTReceiver, IdealCOTSender};
+    use mpz_ot::{
+        ideal::cot::{ideal_rcot, IdealCOTReceiver, IdealCOTSender},
+        Correlation,
+    };
     use mpz_zk_core::test::poly_check;
 
     fn setup() -> (Sender<IdealCOTSender>, Receiver<IdealCOTReceiver>, Block) {
-        let (mut rcot_sender, rcot_receiver) = ideal_rcot();
+        let (rcot_sender, rcot_receiver) = ideal_rcot();
 
-        let delta = rcot_sender.alice().get_mut().delta();
+        let delta = rcot_sender.delta();
 
         let sender = Sender::new(rcot_sender);
         let receiver = Receiver::new(rcot_receiver);

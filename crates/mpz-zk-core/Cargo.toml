@@ -19,6 +19,7 @@ test-utils = []
 [dependencies]
 mpz-core.workspace = true
 mpz-ot-core.workspace = true
+mpz-circuits.workspace = true
 clmul.workspace = true
 matrix-transpose.workspace = true
 
@@ -33,3 +34,5 @@ opaque-debug.workspace = true
 cfg-if.workspace = true
 bytemuck = { workspace = true, features = ["derive"] }
 enum-try-as-inner.workspace = true
+blake3.workspace = true
+rand_core.workspace = true

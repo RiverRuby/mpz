@@ -19,5 +19,27 @@
     clippy::all
 )]
 
+use mpz_ot_core::TransferId;
+
+pub mod quicksilver;
 pub mod test;
 pub mod vope;
+pub mod ideal;
+
+/// The output the receiver receives from the VOPE functionality.
+#[derive(Debug)]
+pub struct VOPEReceiverOutput<T> {
+    /// The transfer id.
+    pub id: TransferId,
+    /// The coefficients.
+    pub coeff: Vec<T>,
+}
+
+/// The output the sender receives from the VOPE functinality.
+#[derive(Debug)]
+pub struct VOPESenderOutput<T> {
+    /// The transfer id.
+    pub id: TransferId,
+    /// The evaluation value.
+    pub eval: T,
+}
