@@ -119,7 +119,7 @@ impl IdealROT {
 impl Default for IdealROT {
     fn default() -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(0);
-        Self::new(rng.gen())
+        Self::new(rng.r#gen())
     }
 }
 

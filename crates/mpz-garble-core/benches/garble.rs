@@ -18,9 +18,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     ];
 
     gb_group.bench_function("aes128", |b| {
-        let mut gen = Generator::default();
+        let mut r#gen = Generator::default();
         b.iter(|| {
-            let mut gen_iter = gen
+            let mut gen_iter = r#gen
                 .generate(&AES128, encoder.delta(), full_inputs.clone())
                 .unwrap();
 
@@ -31,9 +31,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     gb_group.bench_function("aes128_batched", |b| {
-        let mut gen = Generator::default();
+        let mut r#gen = Generator::default();
         b.iter(|| {
-            let mut gen_iter = gen
+            let mut gen_iter = r#gen
                 .generate_batched(&AES128, encoder.delta(), full_inputs.clone())
                 .unwrap();
 
@@ -44,9 +44,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     gb_group.bench_function("aes128_with_hash", |b| {
-        let mut gen = Generator::default();
+        let mut r#gen = Generator::default();
         b.iter(|| {
-            let mut gen_iter = gen
+            let mut gen_iter = r#gen
                 .generate(&AES128, encoder.delta(), full_inputs.clone())
                 .unwrap();
 
@@ -63,8 +63,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut ev_group = c.benchmark_group("evaluate");
 
     ev_group.bench_function("aes128", |b| {
-        let mut gen = Generator::default();
-        let mut gen_iter = gen
+        let mut r#gen = Generator::default();
+        let mut gen_iter = r#gen
             .generate(&AES128, encoder.delta(), full_inputs.clone())
             .unwrap();
         let gates: Vec<_> = gen_iter.by_ref().collect();

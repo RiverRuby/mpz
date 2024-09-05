@@ -116,7 +116,7 @@ where
         ctx.io_mut().flush().await?;
 
         // Sample chi_seed with coin-toss.
-        let seed = thread_rng().gen();
+        let seed = thread_rng().r#gen();
         let chi_seed = cointoss::cointoss_sender(ctx, vec![seed]).await?[0];
 
         // Compute consistency check.
@@ -193,7 +193,7 @@ where
 
         // If the sender is committed, we run a coin toss
         if ext_receiver.config().sender_commit() {
-            let cointoss_seed = thread_rng().gen();
+            let cointoss_seed = thread_rng().r#gen();
             let (cointoss_receiver, _) = try_join!(
                 ctx,
                 cointoss::Receiver::new(vec![cointoss_seed])
@@ -207,7 +207,7 @@ where
             self.base.setup(ctx).await?;
         }
 
-        let seeds: [[Block; 2]; CSP] = std::array::from_fn(|_| thread_rng().gen());
+        let seeds: [[Block; 2]; CSP] = std::array::from_fn(|_| thread_rng().r#gen());
 
         // Send seeds to sender
         self.base.send(ctx, &seeds).await?;
@@ -310,7 +310,7 @@ where
         let id = keys.id();
         let (choices, keys) = keys.take_choices_and_keys();
 
-        let msgs = keys.into_iter().map(|k| Prg::from_seed(k).gen()).collect();
+        let msgs = keys.into_iter().map(|k| Prg::from_seed(k).r#gen()).collect();
 
         Ok(ROTReceiverOutput { id, choices, msgs })
     }

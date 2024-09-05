@@ -9,7 +9,7 @@ async fn test_offline_garble() {
     let (mut ctx_a, mut ctx_b) = test_st_executor(8);
     let (mut ot_send, mut ot_recv) = ideal_ot();
 
-    let gen = Generator::new(
+    let r#gen = Generator::new(
         GeneratorConfigBuilder::default().build().unwrap(),
         [0u8; 32],
     );
@@ -35,10 +35,10 @@ async fn test_offline_garble() {
             .new_output("ciphertext", ciphertext_typ.clone())
             .unwrap();
 
-        gen.generate_input_encoding(&key_ref, &key_typ);
-        gen.generate_input_encoding(&msg_ref, &msg_typ);
+        r#gen.generate_input_encoding(&key_ref, &key_typ);
+        r#gen.generate_input_encoding(&msg_ref, &msg_typ);
 
-        gen.generate(
+        r#gen.generate(
             &mut ctx_a,
             AES128.clone(),
             &[key_ref.clone(), msg_ref.clone()],
@@ -50,7 +50,7 @@ async fn test_offline_garble() {
 
         memory.assign(&key_ref, key.into()).unwrap();
 
-        gen.setup_assigned_values(
+        r#gen.setup_assigned_values(
             &mut ctx_a,
             &memory.drain_assigned(&[key_ref.clone(), msg_ref.clone()]),
             &mut ot_send,
@@ -58,7 +58,7 @@ async fn test_offline_garble() {
         .await
         .unwrap();
 
-        gen.get_encoding(&ciphertext_ref).unwrap()
+        r#gen.get_encoding(&ciphertext_ref).unwrap()
     };
 
     let ev_fut = async {

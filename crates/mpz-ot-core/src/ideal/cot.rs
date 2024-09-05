@@ -125,7 +125,7 @@ impl IdealCOT {
 impl Default for IdealCOT {
     fn default() -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(0);
-        Self::new(rng.gen(), rng.gen())
+        Self::new(rng.r#gen(), rng.r#gen())
     }
 }
 

@@ -166,7 +166,7 @@ mod tests {
         let delta = alice.0.get_mut().delta();
 
         let count = 10;
-        let choices = (0..count).map(|_| rng.gen()).collect::<Vec<bool>>();
+        let choices = (0..count).map(|_| rng.r#gen()).collect::<Vec<bool>>();
 
         let (
             COTSenderOutput {

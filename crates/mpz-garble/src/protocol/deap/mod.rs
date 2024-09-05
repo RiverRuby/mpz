@@ -47,7 +47,7 @@ use self::error::FinalizationError;
 #[derive(Debug)]
 pub struct DEAP {
     role: Role,
-    gen: Generator,
+    r#gen: Generator,
     ev: Evaluator,
     state: Mutex<State>,
     finalized: bool,
@@ -123,12 +123,12 @@ impl DEAP {
         let gen_config = gen_config_builder.build().expect("config should be valid");
         let ev_config = ev_config_builder.build().expect("config should be valid");
 
-        let gen = Generator::new(gen_config, encoder_seed);
+        let r#gen = Generator::new(gen_config, encoder_seed);
         let ev = Evaluator::new(ev_config);
 
         Self {
             role,
-            gen,
+            r#gen,
             ev,
             state: Mutex::new(State::default()),
             finalized: false,
@@ -159,7 +159,7 @@ impl DEAP {
             Role::Leader => {
                 try_join!(
                     ctx,
-                    self.gen
+                    self.r#gen
                         .setup_assigned_values(ctx, &assigned, ot_send)
                         .map_err(DEAPError::from),
                     self.ev
@@ -173,7 +173,7 @@ impl DEAP {
                     self.ev
                         .setup_assigned_values(ctx, &assigned, ot_recv)
                         .map_err(DEAPError::from),
-                    self.gen
+                    self.r#gen
                         .setup_assigned_values(ctx, &assigned, ot_send)
                         .map_err(DEAPError::from)
                 )??;
@@ -218,7 +218,7 @@ impl DEAP {
         OTS: OTSendEncoding<Ctx> + Send,
     {
         let assigned = self.state().memory.drain_assigned(values);
-        self.gen
+        self.r#gen
             .setup_assigned_values(ctx, &assigned, ot_send)
             .await?;
 
@@ -248,7 +248,7 @@ impl DEAP {
             Role::Leader => {
                 try_join!(
                     ctx,
-                    self.gen
+                    self.r#gen
                         .generate(ctx, circ.clone(), inputs, outputs, false)
                         .map_err(DEAPError::from),
                     self.ev
@@ -262,7 +262,7 @@ impl DEAP {
                     self.ev
                         .receive_garbled_circuit(ctx, circ.clone(), inputs, outputs)
                         .map_err(DEAPError::from),
-                    self.gen
+                    self.r#gen
                         .generate(ctx, circ.clone(), inputs, outputs, false)
                         .map_err(DEAPError::from)
                 )??;
@@ -307,11 +307,11 @@ impl DEAP {
                 try_join! {
                     ctx,
                     async {
-                        self.gen
+                        self.r#gen
                             .setup_assigned_values(ctx, &assigned_values, ot_send)
                             .await?;
 
-                        self.gen
+                        self.r#gen
                             .generate(ctx, circ.clone(), inputs, outputs, false)
                             .await
                             .map_err(DEAPError::from)
@@ -342,11 +342,11 @@ impl DEAP {
                             .map_err(DEAPError::from)
                     },
                     async {
-                        self.gen
+                        self.r#gen
                             .setup_assigned_values(ctx, &assigned_values, ot_send)
                             .await?;
 
-                        self.gen
+                        self.r#gen
                             .generate(ctx, circ.clone(), inputs, outputs, false)
                             .await
                             .map_err(DEAPError::from)
@@ -452,12 +452,12 @@ impl DEAP {
 
         // The verifier only acts as the generator for ZKPs instead of
         // dual-execution.
-        self.gen
+        self.r#gen
             .setup_assigned_values(ctx, &assigned_values, ot_send)
             .map_err(DEAPError::from)
             .await?;
 
-        self.gen
+        self.r#gen
             .generate(ctx, circ.clone(), inputs, outputs, false)
             .map_err(DEAPError::from)
             .await?;
@@ -513,7 +513,7 @@ impl DEAP {
     where
         Ctx: Context,
     {
-        let encoded_values = self.gen.get_encodings(values)?;
+        let encoded_values = self.r#gen.get_encodings(values)?;
 
         let expected_values = expected_values
             .iter()
@@ -562,7 +562,7 @@ impl DEAP {
         let full = values
             .iter()
             .map(|value| {
-                self.gen
+                self.r#gen
                     .get_encoding(value)
                     .ok_or(DEAPError::MissingEncoding(value.clone()))
             })
@@ -582,7 +582,7 @@ impl DEAP {
             Role::Leader => {
                 let (_, purported_values) = try_join!(
                     ctx,
-                    self.gen.decode(ctx, values).map_err(DEAPError::from),
+                    self.r#gen.decode(ctx, values).map_err(DEAPError::from),
                     self.ev.decode(ctx, values).map_err(DEAPError::from)
                 )??;
                 purported_values
@@ -591,7 +591,7 @@ impl DEAP {
                 let (purported_values, _) = try_join!(
                     ctx,
                     self.ev.decode(ctx, values).map_err(DEAPError::from),
-                    self.gen.decode(ctx, values).map_err(DEAPError::from)
+                    self.r#gen.decode(ctx, values).map_err(DEAPError::from)
                 )??;
                 purported_values
             }
@@ -677,7 +677,7 @@ impl DEAP {
                     let otp_typ = otp_value.value_type();
                     let mask_ref =
                         state.new_output_mask(&format!("{}/{id}/{idx}/mask", ctx.id()), value);
-                    self.gen.generate_input_encoding(&otp_ref, &otp_typ);
+                    self.r#gen.generate_input_encoding(&otp_ref, &otp_typ);
                     (((otp_ref, otp_typ), otp_value), mask_ref)
                 })
                 .unzip()
@@ -732,7 +732,7 @@ impl DEAP {
                         state.new_blind_otp(&format!("{}/{id}/{idx}/otp", ctx.id()), value);
                     let mask_ref =
                         state.new_output_mask(&format!("{}/{id}/{idx}/mask", ctx.id()), value);
-                    self.gen.generate_input_encoding(&otp_ref, &otp_typ);
+                    self.r#gen.generate_input_encoding(&otp_ref, &otp_typ);
                     ((otp_ref, otp_typ), mask_ref)
                 })
                 .unzip()
@@ -800,8 +800,8 @@ impl DEAP {
                     };
                     let mask_ref =
                         state.new_output_mask(&format!("{}/{id}/{idx}/mask", ctx.id()), value);
-                    self.gen.generate_input_encoding(&otp_0_ref, &otp_typ);
-                    self.gen.generate_input_encoding(&otp_1_ref, &otp_typ);
+                    self.r#gen.generate_input_encoding(&otp_0_ref, &otp_typ);
+                    self.r#gen.generate_input_encoding(&otp_1_ref, &otp_typ);
                     ((((otp_0_ref, otp_1_ref), otp_typ), otp_value), mask_ref)
                 })
                 .unzip()
@@ -901,7 +901,7 @@ impl DEAP {
             }
             Role::Follower => {
                 let encoder_seed: [u8; 32] = self
-                    .gen
+                    .r#gen
                     .seed()
                     .try_into()
                     .expect("encoder seed is 32 bytes");

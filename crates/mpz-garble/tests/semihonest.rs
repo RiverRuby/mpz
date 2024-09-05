@@ -9,7 +9,7 @@ async fn test_semi_honest() {
     let (mut ctx_a, mut ctx_b) = test_st_executor(8);
     let (mut ot_send, mut ot_recv) = ideal_ot();
 
-    let gen = Generator::new(
+    let r#gen = Generator::new(
         GeneratorConfigBuilder::default().build().unwrap(),
         [0u8; 32],
     );
@@ -37,10 +37,10 @@ async fn test_semi_honest() {
 
         memory.assign(&key_ref, key.into()).unwrap();
 
-        gen.generate_input_encoding(&key_ref, &key_typ);
-        gen.generate_input_encoding(&msg_ref, &msg_typ);
+        r#gen.generate_input_encoding(&key_ref, &key_typ);
+        r#gen.generate_input_encoding(&msg_ref, &msg_typ);
 
-        gen.setup_assigned_values(
+        r#gen.setup_assigned_values(
             &mut ctx_a,
             &memory.drain_assigned(&[key_ref.clone(), msg_ref.clone()]),
             &mut ot_send,
@@ -48,7 +48,7 @@ async fn test_semi_honest() {
         .await
         .unwrap();
 
-        gen.generate(
+        r#gen.generate(
             &mut ctx_a,
             AES128.clone(),
             &[key_ref.clone(), msg_ref.clone()],
@@ -58,7 +58,7 @@ async fn test_semi_honest() {
         .await
         .unwrap();
 
-        gen.get_encoding(&ciphertext_ref).unwrap()
+        r#gen.get_encoding(&ciphertext_ref).unwrap()
     };
 
     let ev_fut = async {

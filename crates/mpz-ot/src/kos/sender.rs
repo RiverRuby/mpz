@@ -166,7 +166,7 @@ impl<BaseOT: Send> Sender<BaseOT> {
             Backend::spawn(move || ext_sender.extend(count, extend).map(|_| ext_sender)).await?;
 
         // Sample chi_seed with coin-toss.
-        let seed: Block = thread_rng().gen();
+        let seed: Block = thread_rng().r#gen();
         let chi_seed = cointoss::cointoss_receiver(ctx, vec![seed]).await?[0];
 
         // Receive the receiver's check.
@@ -229,7 +229,7 @@ where
 
         // If the sender is committed, we sample delta using a coin toss.
         let delta = if sender.config().sender_commit() {
-            let cointoss_seed = thread_rng().gen();
+            let cointoss_seed = thread_rng().r#gen();
 
             // Execute coin-toss protocol and base OT setup concurrently.
             let ((seeds, cointoss_sender), _) = try_join!(
@@ -387,7 +387,7 @@ where
                 let mut prg_0 = Prg::from_seed(k0);
                 let mut prg_1 = Prg::from_seed(k1);
 
-                [prg_0.gen::<T>(), prg_1.gen::<T>()]
+                [prg_0.r#gen::<T>(), prg_1.r#gen::<T>()]
             })
             .collect();
 

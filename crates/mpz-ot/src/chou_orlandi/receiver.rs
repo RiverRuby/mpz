@@ -98,7 +98,7 @@ impl<Ctx: Context> OTSetup<Ctx> for Receiver {
                 ))?;
             }
 
-            let cointoss_seed = thread_rng().gen();
+            let cointoss_seed = thread_rng().r#gen();
             let (seeds, cointoss_sender) = cointoss::Sender::new(vec![cointoss_seed])
                 .commit(ctx)
                 .await
@@ -117,7 +117,7 @@ impl<Ctx: Context> OTSetup<Ctx> for Receiver {
 
             stretched_seed
         } else {
-            seed.unwrap_or_else(|| thread_rng().gen())
+            seed.unwrap_or_else(|| thread_rng().r#gen())
         };
 
         let sender_setup = ctx.io_mut().expect_next().await?;

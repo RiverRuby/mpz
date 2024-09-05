@@ -378,8 +378,8 @@ mod tests {
             .map(|input| encoder.encode_by_type(0, &input.value_type()))
             .collect();
 
-        let mut gen = Generator::default();
-        let mut gate_iter = gen.generate(&AES128, encoder.delta(), inputs).unwrap();
+        let mut r#gen = Generator::default();
+        let mut gate_iter = r#gen.generate(&AES128, encoder.delta(), inputs).unwrap();
 
         let enc_gates: Vec<EncryptedGate> = gate_iter.by_ref().collect();
 
@@ -408,8 +408,8 @@ mod tests {
             .map(|input| encoder.encode_by_type(0, &input.value_type()))
             .collect();
 
-        let mut gen = Generator::default();
-        let mut gate_iter = gen
+        let mut r#gen = Generator::default();
+        let mut gate_iter = r#gen
             .generate_batched(&circ, encoder.delta(), inputs)
             .unwrap();
 

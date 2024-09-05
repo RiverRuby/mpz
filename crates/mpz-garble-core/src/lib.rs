@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_and_gate() {
-        use crate::{evaluator as ev, generator as gen};
+        use crate::{evaluator as ev, generator as r#gen};
 
         let mut rng = ChaCha12Rng::seed_from_u64(0);
         let cipher = &(*FIXED_KEY_AES);
@@ -106,7 +106,7 @@ mod tests {
         let y_1 = y_0 ^ delta;
         let gid: usize = 1;
 
-        let (z_0, encrypted_gate) = gen::and_gate(cipher, &x_0, &y_0, &delta, gid);
+        let (z_0, encrypted_gate) = r#gen::and_gate(cipher, &x_0, &y_0, &delta, gid);
         let z_1 = z_0 ^ delta;
 
         assert_eq!(ev::and_gate(cipher, &x_0, &y_0, &encrypted_gate, gid), z_0);
@@ -140,10 +140,10 @@ mod tests {
             full_inputs[1].clone().select(msg).unwrap(),
         ];
 
-        let mut gen = Generator::default();
+        let mut r#gen = Generator::default();
         let mut ev = Evaluator::default();
 
-        let mut gen_iter = gen
+        let mut gen_iter = r#gen
             .generate_batched(&AES128, encoder.delta(), full_inputs)
             .unwrap();
         let mut ev_consumer = ev.evaluate_batched(&AES128, active_inputs).unwrap();
@@ -192,7 +192,7 @@ mod tests {
         let circ = builder.build().unwrap();
         assert_eq!(circ.and_count(), 0);
 
-        let mut gen = Generator::default();
+        let mut r#gen = Generator::default();
         let mut ev = Evaluator::default();
 
         let a = 1u8;
@@ -209,7 +209,7 @@ mod tests {
             full_inputs[1].clone().select(b).unwrap(),
         ];
 
-        let mut gen_iter = gen
+        let mut gen_iter = r#gen
             .generate_batched(&circ, encoder.delta(), full_inputs)
             .unwrap();
         let mut ev_consumer = ev.evaluate_batched(&circ, active_inputs).unwrap();

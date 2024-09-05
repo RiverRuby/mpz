@@ -80,7 +80,7 @@ impl<Ctx: Context> OTSetup<Ctx> for Sender {
 
         // If the receiver is committed, we run the cointoss protocol
         if sender.config().receiver_commit() {
-            let cointoss_seed = thread_rng().gen();
+            let cointoss_seed = thread_rng().r#gen();
             self.cointoss_receiver = Some(
                 cointoss::Receiver::new(vec![cointoss_seed])
                     .receive(ctx)

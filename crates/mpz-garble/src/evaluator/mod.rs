@@ -547,7 +547,7 @@ impl Evaluator {
         // object owns the Mutex, we are guaranteed that no other thread is accessing
         // the state during verification.
 
-        let gen = Generator::new(
+        let r#gen = Generator::new(
             GeneratorConfigBuilder::default().build().unwrap(),
             encoder_seed,
         );
@@ -555,7 +555,7 @@ impl Evaluator {
         // Generate encodings for all received values
         let received_values: Vec<(ValueId, ValueType)> =
             self.state().received_values.drain().collect();
-        gen.generate_input_encodings_by_id(&received_values);
+        r#gen.generate_input_encodings_by_id(&received_values);
 
         let (ot_log, mut circuit_logs) = {
             let mut state = self.state();
@@ -567,7 +567,7 @@ impl Evaluator {
 
         // Verify all OTs in the log
         for (ot_id, value_ids) in ot_log {
-            let encoded_values = gen
+            let encoded_values = r#gen
                 .get_encodings_by_id(&value_ids)
                 .expect("encodings should be present");
             ot.verify(ctx, ot_id, encoded_values).await?
@@ -583,13 +583,13 @@ impl Evaluator {
                 .filter_drain(|log| {
                     log.inputs
                         .iter()
-                        .all(|input| gen.get_encoding(input).is_some())
+                        .all(|input| r#gen.get_encoding(input).is_some())
                 })
                 .collect::<Vec<_>>();
 
             for log in log_batch {
                 // Compute the garbled circuit digest
-                let (_, digest) = gen
+                let (_, digest) = r#gen
                     .generate(
                         &mut dummy_ctx,
                         log.circ.clone(),
@@ -608,7 +608,7 @@ impl Evaluator {
 
         // Verify all decodings in the log
         for (value, decoding) in self.state().decoding_logs.drain() {
-            let encoding = gen.get_encoding(&value).expect("encoding should exist");
+            let encoding = r#gen.get_encoding(&value).expect("encoding should exist");
 
             if encoding.decoding() != decoding {
                 return Err(VerificationError::InvalidDecoding)?;

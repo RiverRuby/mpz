@@ -40,7 +40,7 @@ fn kos(c: &mut Criterion) {
             let delta = Block::random(&mut rng);
             let chi_seed = Block::random(&mut rng);
 
-            let receiver_seeds: [[Block; 2]; 128] = std::array::from_fn(|_| [rng.gen(), rng.gen()]);
+            let receiver_seeds: [[Block; 2]; 128] = std::array::from_fn(|_| [rng.r#gen(), rng.r#gen()]);
             let sender_seeds: [Block; 128] = delta
                 .iter_lsb0()
                 .zip(receiver_seeds)

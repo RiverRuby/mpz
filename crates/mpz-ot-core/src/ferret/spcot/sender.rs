@@ -93,7 +93,7 @@ impl Sender<state::Extension> {
         let mut k0 = vec![Block::ZERO; h];
         let mut k1 = vec![Block::ZERO; h];
         let mut tree = vec![Block::ZERO; 1 << h];
-        ggm_tree.gen(s, &mut tree, &mut k0, &mut k1);
+        ggm_tree.r#gen(s, &mut tree, &mut k0, &mut k1);
 
         // Stores the tree, i.e., the possible output of sender.
         self.state.unchecked_vs.extend_from_slice(&tree);

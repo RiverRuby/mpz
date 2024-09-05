@@ -40,19 +40,19 @@ impl Block {
     /// Generate a random block using the provided RNG
     #[inline]
     pub fn random<R: Rng + CryptoRng + ?Sized>(rng: &mut R) -> Self {
-        Self::new(rng.gen())
+        Self::new(rng.r#gen())
     }
 
     /// Generate a random array of blocks using the provided RNG
     #[inline]
     pub fn random_array<const N: usize, R: Rng + CryptoRng>(rng: &mut R) -> [Self; N] {
-        std::array::from_fn(|_| rng.gen::<[u8; 16]>().into())
+        std::array::from_fn(|_| rng.r#gen::<[u8; 16]>().into())
     }
 
     /// Generate a random vector of blocks using the provided RNG
     #[inline]
     pub fn random_vec<R: Rng + CryptoRng + ?Sized>(rng: &mut R, n: usize) -> Vec<Self> {
-        (0..n).map(|_| rng.gen::<[u8; 16]>().into()).collect()
+        (0..n).map(|_| rng.r#gen::<[u8; 16]>().into()).collect()
     }
 
     /// Carry-less multiplication of two blocks, without the reduction step.
@@ -286,7 +286,7 @@ impl BitAndAssign for Block {
 
 impl Distribution<Block> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Block {
-        Block::new(rng.gen())
+        Block::new(rng.r#gen())
     }
 }
 
@@ -367,9 +367,9 @@ mod tests {
         let mut c = (Block::ZERO, Block::ZERO);
         let mut d = Block::ZERO;
         for i in 0..SIZE {
-            let r: [u8; 16] = rng.gen();
+            let r: [u8; 16] = rng.r#gen();
             a.push(Block::from(r));
-            let r: [u8; 16] = rng.gen();
+            let r: [u8; 16] = rng.r#gen();
             b.push(Block::from(r));
 
             let z = a[i].clmul(b[i]);
@@ -389,7 +389,7 @@ mod tests {
         use rand::{Rng, SeedableRng};
         use rand_chacha::ChaCha12Rng;
         let mut rng = ChaCha12Rng::from_seed([0; 32]);
-        let mut x: [u8; 16] = rng.gen();
+        let mut x: [u8; 16] = rng.r#gen();
         let bx = Block::sigma(Block::from(x));
         let (xl, xr) = x.split_at_mut(8);
 

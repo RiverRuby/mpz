@@ -42,7 +42,7 @@ pub struct ChaChaEncoder {
 
 impl Default for ChaChaEncoder {
     fn default() -> Self {
-        Self::new(OsRng.gen())
+        Self::new(OsRng.r#gen())
     }
 }
 

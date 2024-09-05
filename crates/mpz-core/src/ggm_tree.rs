@@ -27,7 +27,7 @@ impl GgmTree {
     /// * `k0` - XORs of all the left-node values in each level, with size `depth`.
     /// * `k1`- XORs of all the right-node values in each level, with size `depth`.
     // This implementation is adapted from EMP Toolkit.
-    pub fn gen(&self, seed: Block, tree: &mut [Block], k0: &mut [Block], k1: &mut [Block]) {
+    pub fn r#gen(&self, seed: Block, tree: &mut [Block], k0: &mut [Block], k1: &mut [Block]) {
         assert_eq!(tree.len(), 1 << (self.depth));
         assert_eq!(k0.len(), self.depth);
         assert_eq!(k1.len(), self.depth);
@@ -150,7 +150,7 @@ fn ggm_test() {
 
     let ggm = GgmTree::new(depth);
 
-    ggm.gen(Block::ZERO, &mut tree, &mut k0, &mut k1);
+    ggm.r#gen(Block::ZERO, &mut tree, &mut k0, &mut k1);
 
     for i in 0..depth {
         if alpha[i] {

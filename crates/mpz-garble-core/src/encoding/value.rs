@@ -817,7 +817,7 @@ mod tests {
     {
         let mut rng = ChaCha12Rng::from_seed([0u8; 32]);
 
-        let value: T = rng.gen();
+        let value: T = rng.r#gen();
 
         let encoded: EncodedValue<_> = encoder.encode_by_type(0, &T::value_type());
         let decoding = encoded.decoding();

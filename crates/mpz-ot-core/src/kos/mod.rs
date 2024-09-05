@@ -57,27 +57,27 @@ mod tests {
     #[fixture]
     fn choices() -> Vec<bool> {
         let mut rng = ChaCha12Rng::seed_from_u64(0);
-        (0..128).map(|_| rng.gen()).collect()
+        (0..128).map(|_| rng.r#gen()).collect()
     }
 
     #[fixture]
     fn data() -> Vec<[Block; 2]> {
         let mut rng = ChaCha12Rng::seed_from_u64(1);
         (0..128)
-            .map(|_| [rng.gen::<[u8; 16]>().into(), rng.gen::<[u8; 16]>().into()])
+            .map(|_| [rng.r#gen::<[u8; 16]>().into(), rng.r#gen::<[u8; 16]>().into()])
             .collect()
     }
 
     #[fixture]
     fn delta() -> Block {
         let mut rng = ChaCha12Rng::seed_from_u64(2);
-        rng.gen::<[u8; 16]>().into()
+        rng.r#gen::<[u8; 16]>().into()
     }
 
     #[fixture]
     fn receiver_seeds() -> [[Block; 2]; CSP] {
         let mut rng = ChaCha12Rng::seed_from_u64(3);
-        std::array::from_fn(|_| [rng.gen(), rng.gen()])
+        std::array::from_fn(|_| [rng.r#gen(), rng.r#gen()])
     }
 
     #[fixture]
@@ -94,7 +94,7 @@ mod tests {
     #[fixture]
     fn chi_seed() -> Block {
         let mut rng = ChaCha12Rng::seed_from_u64(4);
-        rng.gen::<[u8; 16]>().into()
+        rng.r#gen::<[u8; 16]>().into()
     }
 
     #[fixture]

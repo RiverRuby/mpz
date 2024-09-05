@@ -11,7 +11,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut k1 = vec![Block::ZERO; depth];
         let seed = rand::random::<Block>();
         bench.iter(|| {
-            black_box(ggm.gen(
+            black_box(ggm.r#gen(
                 black_box(seed),
                 black_box(&mut tree),
                 black_box(&mut k0),

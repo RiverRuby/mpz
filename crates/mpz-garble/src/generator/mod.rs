@@ -311,8 +311,8 @@ impl Generator {
         } = ctx
             .blocking(scoped!(move |ctx| async move {
                 let _enter = span.enter();
-                let mut gen = GeneratorCore::default();
-                let mut gen_iter = gen.generate_batched(&circ, delta, inputs)?;
+                let mut r#gen = GeneratorCore::default();
+                let mut gen_iter = r#gen.generate_batched(&circ, delta, inputs)?;
                 let io = ctx.io_mut();
 
                 if hash {

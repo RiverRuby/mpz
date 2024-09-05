@@ -217,7 +217,7 @@ impl Sender<state::Extension> {
         // Figure 7, "Check correlation", point 1.
         // Sample random weights for the consistency check.
         let chis = (0..unchecked_qs.len())
-            .map(|_| rng.gen())
+            .map(|_| rng.r#gen())
             .collect::<Vec<_>>();
 
         // Figure 7, "Check correlation", point 3.
@@ -397,7 +397,7 @@ impl SenderKeys {
 
         // Generate a random IV which is used for all messages.
         // This is safe because every message is encrypted with a different key.
-        let iv: [u8; 16] = rand::thread_rng().gen();
+        let iv: [u8; 16] = rand::thread_rng().r#gen();
 
         // If we have derandomization, use it to correct the receiver's choices, else we use
         // default

@@ -69,7 +69,7 @@ impl IdealMpcot {
 impl Default for IdealMpcot {
     fn default() -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(0);
-        IdealMpcot::new(rng.gen(), rng.gen())
+        IdealMpcot::new(rng.r#gen(), rng.r#gen())
     }
 }
 

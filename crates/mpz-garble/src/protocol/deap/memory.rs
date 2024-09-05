@@ -12,7 +12,7 @@ impl Memory for DEAP {
         visibility: Visibility,
     ) -> Result<ValueRef, MemoryError> {
         let value_ref = self.state().memory.new_input(id, typ.clone(), visibility)?;
-        self.gen.generate_input_encoding(&value_ref, &typ);
+        self.r#gen.generate_input_encoding(&value_ref, &typ);
         Ok(value_ref)
     }
 

@@ -168,8 +168,8 @@ mod tests {
     {
         let mut rng = ChaCha12Rng::from_seed([0u8; 32]);
 
-        let a: T = rng.gen();
-        let b: T = rng.gen();
+        let a: T = rng.r#gen();
+        let b: T = rng.r#gen();
 
         let a_full: EncodedValue<_> = encoder.encode_by_type(0, &T::value_type());
         let b_full: EncodedValue<_> = encoder.encode_by_type(1, &T::value_type());
@@ -200,8 +200,8 @@ mod tests {
     {
         let mut rng = ChaCha12Rng::from_seed([0u8; 32]);
 
-        let a: [T; 16] = rng.gen();
-        let b: [T; 16] = rng.gen();
+        let a: [T; 16] = rng.r#gen();
+        let b: [T; 16] = rng.r#gen();
 
         let a_full: EncodedValue<_> = encoder.encode_by_type(0, &<[T; 16]>::value_type());
         let b_full: EncodedValue<_> = encoder.encode_by_type(1, &<[T; 16]>::value_type());
