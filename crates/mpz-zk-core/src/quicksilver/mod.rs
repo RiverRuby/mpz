@@ -8,8 +8,13 @@ pub use error::*;
 pub use prover::Prover;
 pub use verifier::Verifier;
 
+use serde::{Deserialize, Serialize};
+
 /// Buffer size of each check.
-pub const CHECK_BUFFER_SIZE: usize = 1024 * 1024;
+pub(crate) const CHECK_BUFFER_SIZE: usize = 1024 * 1024;
+
+/// Default amount of authenticated gates per batch.
+pub(crate) const DEFAULT_BATCH_SIZE: usize = 128;
 
 #[inline]
 fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
@@ -21,10 +26,29 @@ fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
     v
 }
 
+/// A batch of bit masks.
+///
+/// # Parameters
+///
+/// - `N`: The size of a batch
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MaskBitBatch<const N: usize = DEFAULT_BATCH_SIZE>(
+    #[serde(with = "serde_arrays")] [bool; N],
+);
+
+impl<const N: usize> MaskBitBatch<N> {
+    /// Create a new batch of mask bits.
+    pub fn new(batch: [bool; N]) -> Self {
+        Self(batch)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use mpz_core::prg::Prg;
-    use mpz_ot_core::{ideal::cot::IdealCOT, test::assert_cot};
+    use mpz_ot_core::{
+        ideal::cot::IdealCOT, test::assert_cot, RCOTReceiverOutput, RCOTSenderOutput,
+    };
 
     use crate::{ideal::vope::IdealVOPE, VOPEReceiverOutput, VOPESenderOutput};
 
@@ -49,9 +73,9 @@ mod tests {
 
         let (cot_sender, cot_receiver) = ideal_cot.random_correlated(input.len());
 
-        let (masks, prover_labels) = prover.compute_input_bits(&input, cot_receiver).unwrap();
+        let (masks, prover_labels) = prover.auth_input_bits(&input, cot_receiver).unwrap();
 
-        let verifier_labels = verifier.compute_input_bits(&masks, cot_sender).unwrap();
+        let verifier_labels = verifier.auth_input_bits(&masks, cot_sender).unwrap();
 
         assert_cot(delta, &input, &prover_labels, &verifier_labels);
 
@@ -61,19 +85,25 @@ mod tests {
             .for_each(|(&mac, &key)| {
                 let (cot_sender, cot_receiver) = ideal_cot.random_correlated(1);
 
-                let mask = prover.compute_and_gate(mac, mac, cot_receiver).unwrap();
+                let RCOTReceiverOutput {
+                    choices: s,
+                    msgs: blks,
+                    ..
+                } = cot_receiver;
 
-                verifier
-                    .compute_and_gate(key, key, mask, cot_sender)
-                    .unwrap();
+                let (mask, _) = prover.auth_and_gate(mac, mac, (s[0], blks[0])).unwrap();
+
+                let RCOTSenderOutput { msgs: blks, .. } = cot_sender;
+
+                verifier.auth_and_gate(key, key, mask, blks[0]).unwrap();
             });
 
         let (VOPESenderOutput { eval, .. }, VOPEReceiverOutput { coeff, .. }) =
             ideal_vope.random_correlated(1);
 
-        let (u, v) = prover.check_and_gate((coeff[0], coeff[1]));
+        let (u, v) = prover.check_and_gates((coeff[0], coeff[1]));
 
-        verifier.check_and_gate(eval, u, v);
+        verifier.check_and_gates(eval, u, v);
 
         assert!(verifier.checked());
     }

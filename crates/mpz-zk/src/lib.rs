@@ -9,6 +9,7 @@
     clippy::all
 )]
 
+pub mod quicksilver;
 pub mod vope;
 
 /// An oblivious transfer error.

@@ -5,18 +5,18 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use super::{bools_to_bytes, QsVerifierError, CHECK_BUFFER_SIZE};
 
 /// QuickSilver Verifier.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Verifier {
     /// Global secret.
     delta: Block,
-    /// Buffer for left wire label.
+    /// Buffer for left wire KEY.
     buf_left: Vec<Block>,
-    /// Buffer for right wire label.
+    /// Buffer for right wire KEY.
     buf_right: Vec<Block>,
-    /// Buffer for output wire label.
+    /// Buffer for output wire KEY.
     buf_out: Vec<Block>,
     /// Counter for check.
-    counter: usize,
+    check_counter: usize,
     /// Hasher.
     hasher: blake3::Hasher,
     /// Hash buffer for the bools.
@@ -37,7 +37,7 @@ impl Verifier {
             buf_left: vec![Block::ZERO; CHECK_BUFFER_SIZE],
             buf_right: vec![Block::ZERO; CHECK_BUFFER_SIZE],
             buf_out: vec![Block::ZERO; CHECK_BUFFER_SIZE],
-            counter: 0,
+            check_counter: 0,
             hasher: blake3::Hasher::new(),
             buf_hash: vec![false; CHECK_BUFFER_SIZE],
             and_gate_checked: true,
@@ -49,7 +49,7 @@ impl Verifier {
     ///
     /// * `masks` - The mask bits sent from the prover.
     /// * `cot` - The COT mask received from Ideal COT as the sender.
-    pub fn compute_input_bits(
+    pub fn auth_input_bits(
         &mut self,
         masks: &[bool],
         cot: RCOTSenderOutput<Block>,
@@ -85,30 +85,25 @@ impl Verifier {
     /// * `kb` - The KEY of wire b.
     /// * `mask` - The mask sent by the prover.
     /// * `cot` - The COT mask received from Ideal COT as the sender.
-    pub fn compute_and_gate(
+    pub fn auth_and_gate(
         &mut self,
         ka: Block,
         kb: Block,
         mask: bool,
-        cot: RCOTSenderOutput<Block>,
-    ) -> Result<(), QsVerifierError> {
-        if cot.msgs.len() != 1 {
-            return Err(QsVerifierError::InvalidInputs);
-        }
+        cot: Block,
+    ) -> Result<Block, QsVerifierError> {
+        assert!(self.check_counter < CHECK_BUFFER_SIZE);
 
-        assert!(self.counter < CHECK_BUFFER_SIZE);
+        self.buf_left[self.check_counter] = ka;
+        self.buf_right[self.check_counter] = kb;
+        self.buf_hash[self.check_counter] = mask;
 
-        self.buf_left[self.counter] = ka;
-        self.buf_right[self.counter] = kb;
-        self.buf_hash[self.counter] = mask;
+        let block = cot ^ if mask { self.delta } else { Block::ZERO };
+        let kc = Self::set_zero(block);
+        self.buf_out[self.check_counter] = kc;
+        self.check_counter += 1;
 
-        let RCOTSenderOutput { msgs: blks, .. } = cot;
-
-        let block = blks[0] ^ if mask { self.delta } else { Block::ZERO };
-        self.buf_out[self.counter] = Self::set_zero(block);
-        self.counter += 1;
-
-        Ok(())
+        Ok(kc)
     }
 
     /// Check and gate.
@@ -119,14 +114,14 @@ impl Verifier {
     /// * `vope` - The mask block received from ideal VOPE.
     /// * `u` - The block sent by the prover.
     /// * `v` - The block sent by the prover.
-    pub fn check_and_gate(&mut self, vope: Block, u: Block, v: Block) {
-        assert!(self.counter <= CHECK_BUFFER_SIZE);
+    pub fn check_and_gates(&mut self, vope: Block, u: Block, v: Block) {
+        assert!(self.check_counter <= CHECK_BUFFER_SIZE);
         cfg_if::cfg_if! {
             if #[cfg(feature = "rayon")]{
-                let iter = self.buf_left[..self.counter]
+                let iter = self.buf_left[..self.check_counter]
                 .par_iter()
-                .zip(self.buf_right[..self.counter].par_iter())
-                .zip(self.buf_out[..self.counter].par_iter());
+                .zip(self.buf_right[..self.check_counter].par_iter())
+                .zip(self.buf_out[..self.check_counter].par_iter());
             } else{
                 let iter = self.buf_left[..self.counter]
                 .iter()
@@ -142,10 +137,10 @@ impl Verifier {
 
         // Compute chi and powers.
         self.hasher
-            .update(&bools_to_bytes(&self.buf_hash[..=self.counter]));
+            .update(&bools_to_bytes(&self.buf_hash[..=self.check_counter]));
         let seed = *self.hasher.finalize().as_bytes();
         let seed = Block::try_from(&seed[0..16]).unwrap();
-        let chis = Block::powers(seed, self.counter);
+        let chis = Block::powers(seed, self.check_counter);
 
         // Compute the inner product.
         let w = Block::inn_prdt_red(&block, &chis);
@@ -153,10 +148,19 @@ impl Verifier {
 
         self.hasher.update(&u.to_bytes());
         self.hasher.update(&v.to_bytes());
-        self.counter = 0;
+        self.check_counter = 0;
+    }
+
+    /// Enable and check or not.
+    /// If check_counter is set to the default buffer size,
+    /// we enable the check protocol.
+    #[inline]
+    pub fn enable_check(&self) -> bool {
+        self.check_counter == CHECK_BUFFER_SIZE
     }
 
     /// Returns the and_check results.
+    #[inline]
     pub fn checked(&self) -> bool {
         self.and_gate_checked
     }

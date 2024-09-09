@@ -5,10 +5,14 @@ use mpz_circuits::CircuitError;
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum QsProverError {
-    #[error(transparent)]
-    CircuitError(#[from] CircuitError),
     #[error("invalid inputs")]
     InvalidInputs,
+    #[error("prover not finished")]
+    NotFinished,
+    #[error("not enough COT")]
+    NotEnoughCOT,
+    #[error(transparent)]
+    CircuitError(#[from] CircuitError),
 }
 
 /// Errors that can occur during verifying

@@ -25,6 +25,7 @@ matrix-transpose.workspace = true
 
 tlsn-utils.workspace = true
 
+serde_arrays.workspace = true
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

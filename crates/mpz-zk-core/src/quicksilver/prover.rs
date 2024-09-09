@@ -4,8 +4,8 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 
 use super::{bools_to_bytes, QsProverError, CHECK_BUFFER_SIZE};
 
-/// QuickSilver Prover.
-#[derive(Debug)]
+/// Internal QuickSilver Prover.
+#[derive(Debug, Default)]
 pub struct Prover {
     /// Buffer for left wire label.
     buf_left: Vec<Block>,
@@ -14,7 +14,7 @@ pub struct Prover {
     /// Buffer for output wire label.
     buf_out: Vec<Block>,
     /// Counter for check.
-    counter: usize,
+    check_counter: usize,
     /// Hasher.
     hasher: blake3::Hasher,
     /// Hash buffer for the bools.
@@ -28,7 +28,7 @@ impl Prover {
             buf_left: vec![Block::ZERO; CHECK_BUFFER_SIZE],
             buf_right: vec![Block::ZERO; CHECK_BUFFER_SIZE],
             buf_out: vec![Block::ZERO; CHECK_BUFFER_SIZE],
-            counter: 0,
+            check_counter: 0,
             hasher: blake3::Hasher::new(),
             buf_hash: vec![false; CHECK_BUFFER_SIZE],
         }
@@ -41,7 +41,7 @@ impl Prover {
     ///
     /// * `inputs` - The input bits.
     /// * `cot` - The COT mask received from Ideal COT as the receiver.
-    pub fn compute_input_bits(
+    pub fn auth_input_bits(
         &mut self,
         inputs: &[bool],
         cot: RCOTReceiverOutput<bool, Block>,
@@ -77,37 +77,31 @@ impl Prover {
     /// * `ma` - The MAC of wire a.
     /// * `mb` - The MAC of wire b.
     /// * `cot` - The COT mask received from Ideal COT as the receiver.
-    pub fn compute_and_gate(
+    pub fn auth_and_gate(
         &mut self,
         ma: Block,
         mb: Block,
-        cot: RCOTReceiverOutput<bool, Block>,
-    ) -> Result<bool, QsProverError> {
-        if cot.choices.len() != 1 {
-            return Err(QsProverError::InvalidInputs);
-        }
+        cot: (bool, Block),
+    ) -> Result<(bool, Block), QsProverError> {
+        assert!(self.check_counter < CHECK_BUFFER_SIZE);
 
-        assert!(self.counter < CHECK_BUFFER_SIZE);
+        self.buf_left[self.check_counter] = ma;
+        self.buf_right[self.check_counter] = mb;
 
-        self.buf_left[self.counter] = ma;
-        self.buf_right[self.counter] = mb;
-
-        let RCOTReceiverOutput {
-            choices: s,
-            msgs: blks,
-            ..
-        } = cot;
+        let s = cot.0;
+        let blk = cot.1;
 
         // Compute wa * wb
         let v = ma.lsb() & mb.lsb() == 1;
         // Compute the mask of v with s.
-        let d = v ^ s[0];
+        let d = v ^ s;
 
-        self.buf_out[self.counter] = Self::set_value(blks[0], v);
-        self.buf_hash[self.counter] = d;
-        self.counter += 1;
+        let mc = Self::set_value(blk, v);
+        self.buf_out[self.check_counter] = mc;
+        self.buf_hash[self.check_counter] = d;
+        self.check_counter += 1;
 
-        Ok(d)
+        Ok((d, mc))
     }
 
     /// Check and gate.
@@ -116,19 +110,19 @@ impl Prover {
     /// # Arguments.
     ///
     /// * `vope` - The mask blocks received from ideal VOPE.
-    pub fn check_and_gate(&mut self, vope: (Block, Block)) -> (Block, Block) {
-        assert!(self.counter <= CHECK_BUFFER_SIZE);
+    pub fn check_and_gates(&mut self, vope: (Block, Block)) -> (Block, Block) {
+        assert!(self.check_counter <= CHECK_BUFFER_SIZE);
         cfg_if::cfg_if! {
             if #[cfg(feature = "rayon")]{
-                let iter = self.buf_left[..self.counter]
+                let iter = self.buf_left[..self.check_counter]
                 .par_iter()
-                .zip(self.buf_right[..self.counter].par_iter())
-                .zip(self.buf_out[..self.counter].par_iter());
+                .zip(self.buf_right[..self.check_counter].par_iter())
+                .zip(self.buf_out[..self.check_counter].par_iter());
             } else{
-                let iter = self.buf_left[..self.counter]
+                let iter = self.buf_left[..self.check_counter]
                 .iter()
-                .zip(self.buf_right[..self.counter].iter())
-                .zip(self.buf_out[..self.counter].iter())
+                .zip(self.buf_right[..self.check_counter].iter())
+                .zip(self.buf_out[..self.check_counter].iter())
             }
         }
 
@@ -144,10 +138,10 @@ impl Prover {
 
         // Compute chi and powers.
         self.hasher
-            .update(&bools_to_bytes(&self.buf_hash[..self.counter]));
+            .update(&bools_to_bytes(&self.buf_hash[..self.check_counter]));
         let seed = *self.hasher.finalize().as_bytes();
         let seed = Block::try_from(&seed[0..16]).unwrap();
-        let chis = Block::powers(seed, self.counter);
+        let chis = Block::powers(seed, self.check_counter);
 
         // Compute the inner product.
         let u = Block::inn_prdt_red(&blocks.0, &chis);
@@ -160,9 +154,17 @@ impl Prover {
         // Update the hasher
         self.hasher.update(&u.to_bytes());
         self.hasher.update(&v.to_bytes());
-        self.counter = 0;
+        self.check_counter = 0;
 
         (u, v)
+    }
+
+    /// Enable and check or not.
+    /// If the check_counter is set into the default number,
+    /// we enable the check protocol.
+    #[inline]
+    pub fn enable_check(&self) -> bool {
+        self.check_counter == CHECK_BUFFER_SIZE
     }
 
     // Set the LSB of the block to as the bit.

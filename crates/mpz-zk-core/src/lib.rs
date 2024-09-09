@@ -21,10 +21,10 @@
 
 use mpz_ot_core::TransferId;
 
+pub mod ideal;
 pub mod quicksilver;
 pub mod test;
 pub mod vope;
-pub mod ideal;
 
 /// The output the receiver receives from the VOPE functionality.
 #[derive(Debug)]
