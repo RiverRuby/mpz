@@ -56,7 +56,7 @@ impl Verifier {
         // The mask bits sent by prover.
     ) -> Result<Vec<Block>, QsVerifierError> {
         if masks.len() != cot.msgs.len() {
-            return Err(QsVerifierError::InvalidInputs);
+            return Err(QsVerifierError(format!("lengths not match")));
         }
 
         // Hash the bools.
@@ -91,7 +91,7 @@ impl Verifier {
         kb: Block,
         mask: bool,
         cot: Block,
-    ) -> Result<Block, QsVerifierError> {
+    ) -> Block {
         assert!(self.check_counter < CHECK_BUFFER_SIZE);
 
         self.buf_left[self.check_counter] = ka;
@@ -103,7 +103,7 @@ impl Verifier {
         self.buf_out[self.check_counter] = kc;
         self.check_counter += 1;
 
-        Ok(kc)
+        kc
     }
 
     /// Check and gate.

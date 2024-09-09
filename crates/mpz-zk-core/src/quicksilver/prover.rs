@@ -47,7 +47,7 @@ impl Prover {
         cot: RCOTReceiverOutput<bool, Block>,
     ) -> Result<(Vec<bool>, Vec<Block>), QsProverError> {
         if cot.choices.len() != inputs.len() {
-            return Err(QsProverError::InvalidInputs);
+            return Err(QsProverError(format!("lengths not match")));
         }
 
         let RCOTReceiverOutput {
@@ -77,12 +77,7 @@ impl Prover {
     /// * `ma` - The MAC of wire a.
     /// * `mb` - The MAC of wire b.
     /// * `cot` - The COT mask received from Ideal COT as the receiver.
-    pub fn auth_and_gate(
-        &mut self,
-        ma: Block,
-        mb: Block,
-        cot: (bool, Block),
-    ) -> Result<(bool, Block), QsProverError> {
+    pub fn auth_and_gate(&mut self, ma: Block, mb: Block, cot: (bool, Block)) -> (bool, Block) {
         assert!(self.check_counter < CHECK_BUFFER_SIZE);
 
         self.buf_left[self.check_counter] = ma;
@@ -101,7 +96,7 @@ impl Prover {
         self.buf_hash[self.check_counter] = d;
         self.check_counter += 1;
 
-        Ok((d, mc))
+        (d, mc)
     }
 
     /// Check and gate.

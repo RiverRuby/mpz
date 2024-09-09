@@ -8,13 +8,8 @@ pub use error::*;
 pub use prover::Prover;
 pub use verifier::Verifier;
 
-use serde::{Deserialize, Serialize};
-
 /// Buffer size of each check.
 pub(crate) const CHECK_BUFFER_SIZE: usize = 1024 * 1024;
-
-/// Default amount of authenticated gates per batch.
-pub(crate) const DEFAULT_BATCH_SIZE: usize = 128;
 
 #[inline]
 fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
@@ -24,23 +19,6 @@ fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
         v[i / 8] |= (*b as u8) << (7 - (i % 8));
     }
     v
-}
-
-/// A batch of bit masks.
-///
-/// # Parameters
-///
-/// - `N`: The size of a batch
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MaskBitBatch<const N: usize = DEFAULT_BATCH_SIZE>(
-    #[serde(with = "serde_arrays")] [bool; N],
-);
-
-impl<const N: usize> MaskBitBatch<N> {
-    /// Create a new batch of mask bits.
-    pub fn new(batch: [bool; N]) -> Self {
-        Self(batch)
-    }
 }
 
 #[cfg(test)]
@@ -91,11 +69,11 @@ mod tests {
                     ..
                 } = cot_receiver;
 
-                let (mask, _) = prover.auth_and_gate(mac, mac, (s[0], blks[0])).unwrap();
+                let (mask, _) = prover.auth_and_gate(mac, mac, (s[0], blks[0]));
 
                 let RCOTSenderOutput { msgs: blks, .. } = cot_sender;
 
-                verifier.auth_and_gate(key, key, mask, blks[0]).unwrap();
+                verifier.auth_and_gate(key, key, mask, blks[0]);
             });
 
         let (VOPESenderOutput { eval, .. }, VOPEReceiverOutput { coeff, .. }) =
