@@ -1,6 +1,8 @@
-use mpz_core::Block;
+use mpz_core::{hash::Hash, serialize::CanonicalSerialize, utils::blake3, Block};
 use mpz_ot_core::RCOTReceiverOutput;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+use crate::VOPEReceiverOutput;
 
 use super::{bools_to_bytes, QsProverError, CHECK_BUFFER_SIZE};
 
@@ -105,7 +107,7 @@ impl Prover {
     /// # Arguments.
     ///
     /// * `vope` - The mask blocks received from ideal VOPE.
-    pub fn check_and_gates(&mut self, vope: (Block, Block)) -> (Block, Block) {
+    pub fn check_and_gates(&mut self, vope: VOPEReceiverOutput<Block>) -> (Block, Block) {
         assert!(self.check_counter <= CHECK_BUFFER_SIZE);
         cfg_if::cfg_if! {
             if #[cfg(feature = "rayon")]{
@@ -143,8 +145,8 @@ impl Prover {
         let v = Block::inn_prdt_red(&blocks.1, &chis);
 
         // Mask the results.
-        let u = u ^ vope.0;
-        let v = v ^ vope.1;
+        let u = u ^ vope.coeff[0];
+        let v = v ^ vope.coeff[1];
 
         // Update the hasher
         self.hasher.update(&u.to_bytes());
@@ -155,11 +157,24 @@ impl Prover {
     }
 
     /// Enable and check or not.
-    /// If the check_counter is set into the default number,
+    /// If check_counter is set into the default number,
     /// we enable the check protocol.
     #[inline]
     pub fn enable_check(&self) -> bool {
         self.check_counter == CHECK_BUFFER_SIZE
+    }
+
+    /// Enable the final check or not.
+    /// if check_counter is zero, then no need to check.
+    #[inline]
+    pub fn enable_final_check(&self) -> bool {
+        self.check_counter != 0
+    }
+
+    /// Hash the output macs
+    #[inline]
+    pub fn finish(&self, macs: &[Block]) -> Hash {
+        Hash::from(blake3(&macs.to_bytes()))
     }
 
     // Set the LSB of the block to as the bit.

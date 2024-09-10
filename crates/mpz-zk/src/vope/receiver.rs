@@ -4,10 +4,13 @@ use crate::vope::error::ReceiverError;
 use enum_try_as_inner::EnumTryAsInner;
 use mpz_common::Context;
 use mpz_core::Block;
-use mpz_ot::{RCOTReceiverOutput, RandomCOTReceiver};
-use mpz_zk_core::vope::{
-    receiver::{state, Receiver as ReceiverCore},
-    CSP,
+use mpz_ot::{RCOTReceiverOutput, RandomCOTReceiver, TransferId};
+use mpz_zk_core::{
+    vope::{
+        receiver::{state, Receiver as ReceiverCore},
+        CSP,
+    },
+    VOPEReceiverOutput,
 };
 use utils_aio::non_blocking_backend::{Backend, NonBlockingBackend};
 
@@ -17,27 +20,26 @@ use utils_aio::non_blocking_backend::{Backend, NonBlockingBackend};
 pub enum State {
     Initialized(ReceiverCore<state::Initialized>),
     Extension(ReceiverCore<state::Extension>),
-    Complete,
     Error,
 }
 
 /// VOPE receiver (prover)
 #[derive(Debug)]
-pub struct Receiver<RandomCOT> {
+pub struct Receiver {
     state: State,
-    rcot: RandomCOT,
+    id: TransferId,
 }
 
-impl<RandomCOT: Send> Receiver<RandomCOT> {
+impl Receiver {
     /// Creates a new receiver.
     ///
     /// # Arguments
     ///
     /// * `rcot` - The random COT used by the receiver.
-    pub fn new(rcot: RandomCOT) -> Self {
+    pub fn new() -> Self {
         Self {
             state: State::Initialized(ReceiverCore::new()),
-            rcot,
+            id: TransferId::default(),
         }
     }
 
@@ -58,14 +60,17 @@ impl<RandomCOT: Send> Receiver<RandomCOT> {
     /// # Arguments
     ///
     /// * `ctx` - The context.
+    /// * `rcot` - The ideal random COT.
     /// * `d` - The polynomial degree.
-    pub async fn extend<Ctx: Context>(
+    pub async fn receive<Ctx, RCOT>(
         &mut self,
         ctx: &mut Ctx,
+        rcot: &mut RCOT,
         d: usize,
-    ) -> Result<Vec<Block>, ReceiverError>
+    ) -> Result<VOPEReceiverOutput<Block>, ReceiverError>
     where
-        RandomCOT: RandomCOTReceiver<Ctx, bool, Block>,
+        Ctx: Context,
+        RCOT: RandomCOTReceiver<Ctx, bool, Block>,
     {
         let mut ext_receiver =
             std::mem::replace(&mut self.state, State::Error).try_into_extension()?;
@@ -76,8 +81,7 @@ impl<RandomCOT: Send> Receiver<RandomCOT> {
             msgs: ms,
             choices: us,
             ..
-        } = self
-            .rcot
+        } = rcot
             .receive_random_correlated(ctx, (2 * d - 1) * CSP)
             .await?;
 
@@ -91,15 +95,9 @@ impl<RandomCOT: Send> Receiver<RandomCOT> {
 
         self.state = State::Extension(ext_receiver);
 
-        Ok(res)
-    }
-
-    /// Complete extension.
-    pub fn finalize(&mut self) -> Result<(), ReceiverError> {
-        std::mem::replace(&mut self.state, State::Error).try_into_extension()?;
-
-        self.state = State::Complete;
-
-        Ok(())
+        Ok(VOPEReceiverOutput {
+            id: self.id.next_id(),
+            coeff: res,
+        })
     }
 }

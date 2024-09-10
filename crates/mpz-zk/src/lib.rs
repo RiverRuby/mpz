@@ -12,7 +12,7 @@
 pub mod quicksilver;
 pub mod vope;
 
-/// An oblivious transfer error.
+/// A vope error.
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum VOPEError {
@@ -22,4 +22,16 @@ pub enum VOPEError {
     SenderError(Box<dyn std::error::Error + Send + Sync>),
     #[error("receiver error: {0}")]
     ReceiverError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+/// A zk error.
+#[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
+pub enum ZKError {
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
+    #[error("prover error: {0}")]
+    ProverError(Box<dyn std::error::Error + Send + Sync>),
+    #[error("verifier error: {0}")]
+    VerifierError(Box<dyn std::error::Error + Send + Sync>),
 }

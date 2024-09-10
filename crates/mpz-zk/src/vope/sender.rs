@@ -4,10 +4,13 @@ use crate::vope::error::SenderError;
 use enum_try_as_inner::EnumTryAsInner;
 use mpz_common::Context;
 use mpz_core::Block;
-use mpz_ot::{RCOTSenderOutput, RandomCOTSender};
-use mpz_zk_core::vope::{
-    sender::{state, Sender as SenderCore},
-    CSP,
+use mpz_ot::{RCOTSenderOutput, RandomCOTSender, TransferId};
+use mpz_zk_core::{
+    vope::{
+        sender::{state, Sender as SenderCore},
+        CSP,
+    },
+    VOPESenderOutput,
 };
 use utils_aio::non_blocking_backend::{Backend, NonBlockingBackend};
 
@@ -17,27 +20,22 @@ use utils_aio::non_blocking_backend::{Backend, NonBlockingBackend};
 pub enum State {
     Initialized(SenderCore<state::Initialized>),
     Extension(SenderCore<state::Extension>),
-    Complete,
     Error,
 }
 
 /// VOPE sender (verifier)
 #[derive(Debug)]
-pub struct Sender<RandomCOT> {
+pub struct Sender {
     state: State,
-    rcot: RandomCOT,
+    id: TransferId,
 }
 
-impl<RandomCOT: Send> Sender<RandomCOT> {
+impl Sender {
     /// Creates a new Sender.
-    ///
-    /// # Arguments
-    ///
-    /// * `rcot` - The random COT used by the sender.
-    pub fn new(rcot: RandomCOT) -> Self {
+    pub fn new() -> Self {
         Self {
             state: State::Initialized(SenderCore::new()),
-            rcot,
+            id: TransferId::default(),
         }
     }
 
@@ -46,7 +44,7 @@ impl<RandomCOT: Send> Sender<RandomCOT> {
     /// # Arguments
     ///
     /// * `delta` - The delta value to use for VOPE extension.
-    pub fn setup_with_delta(&mut self, delta: Block) -> Result<(), SenderError> {
+    pub fn setup(&mut self, delta: Block) -> Result<(), SenderError> {
         let ext_sender = std::mem::replace(&mut self.state, State::Error).try_into_initialized()?;
 
         let ext_sender = ext_sender.setup(delta);
@@ -61,39 +59,34 @@ impl<RandomCOT: Send> Sender<RandomCOT> {
     /// # Arguments
     ///
     /// * `ctx` - The context.
+    /// * `rcot` - The ideal random COT.
     /// * `d` - The polynomial degree.
-    pub async fn extend<Ctx: Context>(
+    pub async fn send<Ctx, RCOT>(
         &mut self,
         ctx: &mut Ctx,
+        rcot: &mut RCOT,
         d: usize,
-    ) -> Result<Block, SenderError>
+    ) -> Result<VOPESenderOutput<Block>, SenderError>
     where
-        RandomCOT: RandomCOTSender<Ctx, Block>,
+        Ctx: Context,
+        RCOT: RandomCOTSender<Ctx, Block>,
     {
         let mut ext_sender =
             std::mem::replace(&mut self.state, State::Error).try_into_extension()?;
 
         assert!(d > 0);
 
-        let RCOTSenderOutput { msgs: ks, .. } = self
-            .rcot
-            .send_random_correlated(ctx, (2 * d - 1) * CSP)
-            .await?;
+        let RCOTSenderOutput { msgs: ks, .. } =
+            rcot.send_random_correlated(ctx, (2 * d - 1) * CSP).await?;
 
         let (ext_sender, res) =
             Backend::spawn(move || ext_sender.extend(&ks, d).map(|res| (ext_sender, res))).await?;
 
         self.state = State::Extension(ext_sender);
 
-        Ok(res)
-    }
-
-    /// Complete extension.
-    pub fn finalize(&mut self) -> Result<(), SenderError> {
-        std::mem::replace(&mut self.state, State::Error).try_into_extension()?;
-
-        self.state = State::Complete;
-
-        Ok(())
+        Ok(VOPESenderOutput {
+            id: self.id.next_id(),
+            eval: res,
+        })
     }
 }

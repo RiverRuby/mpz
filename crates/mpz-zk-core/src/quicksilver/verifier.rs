@@ -1,6 +1,8 @@
-use mpz_core::Block;
+use mpz_core::{hash::Hash, serialize::CanonicalSerialize, utils::blake3, Block};
 use mpz_ot_core::RCOTSenderOutput;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
+use crate::VOPESenderOutput;
 
 use super::{bools_to_bytes, QsVerifierError, CHECK_BUFFER_SIZE};
 
@@ -21,8 +23,8 @@ pub struct Verifier {
     hasher: blake3::Hasher,
     /// Hash buffer for the bools.
     buf_hash: Vec<bool>,
-    /// Indicate the and_gate check passes or not.
-    and_gate_checked: bool,
+    /// Indicate the checks pass or not.
+    checked: bool,
 }
 
 impl Verifier {
@@ -40,7 +42,7 @@ impl Verifier {
             check_counter: 0,
             hasher: blake3::Hasher::new(),
             buf_hash: vec![false; CHECK_BUFFER_SIZE],
-            and_gate_checked: true,
+            checked: true,
         }
     }
     /// Compute authenticated bits for inputs.
@@ -85,13 +87,7 @@ impl Verifier {
     /// * `kb` - The KEY of wire b.
     /// * `mask` - The mask sent by the prover.
     /// * `cot` - The COT mask received from Ideal COT as the sender.
-    pub fn auth_and_gate(
-        &mut self,
-        ka: Block,
-        kb: Block,
-        mask: bool,
-        cot: Block,
-    ) -> Block {
+    pub fn auth_and_gate(&mut self, ka: Block, kb: Block, mask: bool, cot: Block) -> Block {
         assert!(self.check_counter < CHECK_BUFFER_SIZE);
 
         self.buf_left[self.check_counter] = ka;
@@ -114,7 +110,7 @@ impl Verifier {
     /// * `vope` - The mask block received from ideal VOPE.
     /// * `u` - The block sent by the prover.
     /// * `v` - The block sent by the prover.
-    pub fn check_and_gates(&mut self, vope: Block, u: Block, v: Block) {
+    pub fn check_and_gates(&mut self, vope: VOPESenderOutput<Block>, u: Block, v: Block) {
         assert!(self.check_counter <= CHECK_BUFFER_SIZE);
         cfg_if::cfg_if! {
             if #[cfg(feature = "rayon")]{
@@ -144,7 +140,7 @@ impl Verifier {
 
         // Compute the inner product.
         let w = Block::inn_prdt_red(&block, &chis);
-        self.and_gate_checked &= (w ^ vope) == u ^ v.gfmul(self.delta);
+        self.checked &= (w ^ vope.eval) == u ^ v.gfmul(self.delta);
 
         self.hasher.update(&u.to_bytes());
         self.hasher.update(&v.to_bytes());
@@ -159,10 +155,45 @@ impl Verifier {
         self.check_counter == CHECK_BUFFER_SIZE
     }
 
+    /// Enable the final check or not.
+    /// if check_counter is zero, then no need to check.
+    #[inline]
+    pub fn enable_final_check(&self) -> bool {
+        self.check_counter != 0
+    }
+
+    /// Hash the output keys with the outputs.
+    pub fn finish(
+        &mut self,
+        hash: Hash,
+        keys: &[Block],
+        outputs: &[bool],
+    ) -> Result<(), QsVerifierError> {
+        if keys.len() != outputs.len() {
+            return Err(QsVerifierError(format!("lengths not match")));
+        }
+
+        let pre_hash: Vec<Block> = keys
+            .iter()
+            .zip(outputs.iter())
+            .map(|(&k, &o)| if o { k ^ self.delta } else { k })
+            .collect();
+
+        let expected_hash = Hash::from(blake3(&pre_hash.to_bytes()));
+        self.checked &= hash == expected_hash;
+
+        Ok(())
+    }
+
     /// Returns the and_check results.
     #[inline]
     pub fn checked(&self) -> bool {
-        self.and_gate_checked
+        self.checked
+    }
+
+    /// Returns delta.
+    pub fn delta(&self) -> Block {
+        self.delta
     }
 
     // Set the lsb of the block to zero.

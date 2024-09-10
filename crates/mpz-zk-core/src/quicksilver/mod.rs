@@ -11,14 +11,27 @@ pub use verifier::Verifier;
 /// Buffer size of each check.
 pub(crate) const CHECK_BUFFER_SIZE: usize = 1024 * 1024;
 
+/// Convert bool vector to byte vector.
 #[inline]
-fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
+pub fn bools_to_bytes(bv: &[bool]) -> Vec<u8> {
     let offset = if bv.len() % 8 == 0 { 0 } else { 1 };
     let mut v = vec![0u8; bv.len() / 8 + offset];
     for (i, b) in bv.iter().enumerate() {
         v[i / 8] |= (*b as u8) << (7 - (i % 8));
     }
     v
+}
+
+/// Convert byte vector to bool vector.
+#[inline]
+pub fn bytes_to_bools(v: &[u8]) -> Vec<bool> {
+    let mut bv = Vec::with_capacity(v.len() * 8);
+    for byte in v.iter() {
+        for i in 0..8 {
+            bv.push(((byte >> (7 - i)) & 1) != 0);
+        }
+    }
+    bv
 }
 
 #[cfg(test)]
@@ -28,7 +41,7 @@ mod tests {
         ideal::cot::IdealCOT, test::assert_cot, RCOTReceiverOutput, RCOTSenderOutput,
     };
 
-    use crate::{ideal::vope::IdealVOPE, VOPEReceiverOutput, VOPESenderOutput};
+    use crate::ideal::vope::IdealVOPE;
 
     use super::{Prover, Verifier};
 
@@ -76,12 +89,11 @@ mod tests {
                 verifier.auth_and_gate(key, key, mask, blks[0]);
             });
 
-        let (VOPESenderOutput { eval, .. }, VOPEReceiverOutput { coeff, .. }) =
-            ideal_vope.random_correlated(1);
+        let (vope_sender, vope_receiver) = ideal_vope.random_correlated(1);
 
-        let (u, v) = prover.check_and_gates((coeff[0], coeff[1]));
+        let (u, v) = prover.check_and_gates(vope_receiver);
 
-        verifier.check_and_gates(eval, u, v);
+        verifier.check_and_gates(vope_sender, u, v);
 
         assert!(verifier.checked());
     }
