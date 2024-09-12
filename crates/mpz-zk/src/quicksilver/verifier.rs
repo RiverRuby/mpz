@@ -3,7 +3,7 @@ use mpz_circuits::{types::Value, Circuit, CircuitError, Gate};
 use mpz_common::{cpu::CpuBackend, Context};
 use mpz_core::Block;
 use mpz_ot::{RCOTSenderOutput, RandomCOTSender};
-use mpz_zk_core::quicksilver::{bytes_to_bools, Verifier as VerifierCore};
+use mpz_zk_core::quicksilver::Verifier as VerifierCore;
 use serio::stream::IoStreamExt;
 
 use super::error::VerifierError;
@@ -23,11 +23,11 @@ impl Verifier {
         }
     }
 
-    /// Authenticate inputs.
+    // Authenticate inputs.
     async fn auth_inputs<Ctx, RCOT>(
         &mut self,
-        len: usize,
         ctx: &mut Ctx,
+        len: usize,
         rcot: &mut RCOT,
     ) -> Result<Vec<Block>, VerifierError>
     where
@@ -36,17 +36,23 @@ impl Verifier {
     {
         let cot = rcot.send_random_correlated(ctx, len).await?;
 
-        let bytes: Vec<u8> = ctx.io_mut().expect_next().await?;
+        let masks: Vec<bool> = ctx.io_mut().expect_next().await?;
 
-        let masks = bytes_to_bools(&bytes);
         assert_eq!(masks.len(), len);
 
-        let blks = self.verifier_core.auth_input_bits(&masks, cot)?;
+        let keys = self.verifier_core.auth_input_bits(&masks, cot)?;
 
-        Ok(blks)
+        Ok(keys)
     }
 
-    /// Verify
+    /// Verify a circuit.
+    ///
+    /// # Arguments.
+    ///
+    /// * `ctx` - The context.
+    /// * `circ` - The circuit.
+    /// * `output_value` - The public output value hold by the verifier and prover.
+    /// * `rcot` - The ideal RCOT functionality.
     pub async fn verify<Ctx, RCOT>(
         &mut self,
         ctx: &mut Ctx,
@@ -59,6 +65,7 @@ impl Verifier {
         RCOT: RandomCOTSender<Ctx, Block>,
     {
         let len: usize = circ.outputs().iter().map(|v| v.len()).sum();
+
         let output_value = output_value.into().into_lsb0_vec();
         if output_value.len() != len {
             return Err(CircuitError::InvalidOutputCount(len, output_value.len()))?;
@@ -68,9 +75,9 @@ impl Verifier {
             self.keys.resize(circ.feed_count(), Default::default());
         }
 
-        let input_len: usize = circ.inputs().iter().map(|v| v.len()).sum();
         // Handle inputs.
-        let input_keys = self.auth_inputs(input_len, ctx, rcot).await?;
+        let input_len: usize = circ.inputs().iter().map(|v| v.len()).sum();
+        let input_keys = self.auth_inputs(ctx, input_len, rcot).await?;
 
         for (key, node) in input_keys
             .iter()
@@ -80,7 +87,7 @@ impl Verifier {
         }
 
         // Authenticate the circuit.
-        while let Some(gate) = circ.gates().iter().next() {
+        for gate in circ.gates() {
             match gate {
                 Gate::Xor {
                     x: node_x,
@@ -96,7 +103,7 @@ impl Verifier {
                     y: node_y,
                     z: node_z,
                 } => {
-                    // Check the batched authenticated and gats.
+                    // Check the batched authenticated and gates.
                     if self.verifier_core.enable_check() {
                         self.check_and_gates(ctx, rcot).await?;
                     }
@@ -135,6 +142,7 @@ impl Verifier {
             .map(|node| self.keys[node.id()])
             .collect();
 
+        // Receive the hash of output macs and verify.
         let hash = ctx.io_mut().expect_next().await?;
         self.verifier_core
             .finish(hash, &output_keys, &output_value)?;
@@ -159,7 +167,7 @@ impl Verifier {
 
         let u: (Block, Block) = ctx.io_mut().expect_next().await?;
 
-        let mut verifier_core = std::mem::replace(&mut self.verifier_core, VerifierCore::default());
+        let mut verifier_core = std::mem::take(&mut self.verifier_core);
 
         let (_, verifier_core) = CpuBackend::blocking(move || {
             (verifier_core.check_and_gates(v, u.0, u.1), verifier_core)
@@ -170,7 +178,7 @@ impl Verifier {
         Ok(())
     }
 
-    /// Returns checked over not.
+    /// Returns checked or not.
     #[inline]
     pub fn checked(&self) -> bool {
         self.verifier_core.checked()

@@ -32,10 +32,6 @@ pub struct Receiver {
 
 impl Receiver {
     /// Creates a new receiver.
-    ///
-    /// # Arguments
-    ///
-    /// * `rcot` - The random COT used by the receiver.
     pub fn new() -> Self {
         Self {
             state: State::Initialized(ReceiverCore::new()),
@@ -99,5 +95,12 @@ impl Receiver {
             id: self.id.next_id(),
             coeff: res,
         })
+    }
+}
+
+impl Default for Receiver {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }

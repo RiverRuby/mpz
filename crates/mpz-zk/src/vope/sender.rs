@@ -90,3 +90,10 @@ impl Sender {
         })
     }
 }
+
+impl Default for Sender {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}

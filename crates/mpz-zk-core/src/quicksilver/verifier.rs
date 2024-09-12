@@ -58,7 +58,7 @@ impl Verifier {
         // The mask bits sent by prover.
     ) -> Result<Vec<Block>, QsVerifierError> {
         if masks.len() != cot.msgs.len() {
-            return Err(QsVerifierError(format!("lengths not match")));
+            return Err(QsVerifierError("lengths not match".to_string()));
         }
 
         // Hash the bools.
@@ -133,7 +133,7 @@ impl Verifier {
 
         // Compute chi and powers.
         self.hasher
-            .update(&bools_to_bytes(&self.buf_hash[..=self.check_counter]));
+            .update(&bools_to_bytes(&self.buf_hash[..self.check_counter]));
         let seed = *self.hasher.finalize().as_bytes();
         let seed = Block::try_from(&seed[0..16]).unwrap();
         let chis = Block::powers(seed, self.check_counter);
@@ -170,7 +170,7 @@ impl Verifier {
         outputs: &[bool],
     ) -> Result<(), QsVerifierError> {
         if keys.len() != outputs.len() {
-            return Err(QsVerifierError(format!("lengths not match")));
+            return Err(QsVerifierError("lengths not match".to_string()));
         }
 
         let pre_hash: Vec<Block> = keys

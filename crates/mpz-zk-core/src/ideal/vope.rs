@@ -1,5 +1,7 @@
 //! Ideal VOPE functionality.
 
+use std::iter::successors;
+
 use mpz_core::{prg::Prg, Block};
 use mpz_ot_core::TransferId;
 use rand_core::SeedableRng;
@@ -63,7 +65,9 @@ impl IdealVOPE {
         let mut coeff = vec![Block::ZERO; degree + 1];
         self.prg.random_blocks(&mut coeff);
 
-        let powers = Block::powers(self.delta, degree + 1);
+        let powers: Vec<Block> = successors(Some(Block::ONE), |pow| Some(pow.gfmul(self.delta)))
+            .take(degree + 1)
+            .collect();
 
         let eval = Block::inn_prdt_red(&coeff, &powers);
 

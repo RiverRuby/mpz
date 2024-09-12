@@ -36,7 +36,7 @@ pub fn bytes_to_bools(v: &[u8]) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use mpz_core::prg::Prg;
+    use mpz_core::{prg::Prg, Block};
     use mpz_ot_core::{
         ideal::cot::IdealCOT, test::assert_cot, RCOTReceiverOutput, RCOTSenderOutput,
     };
@@ -47,17 +47,15 @@ mod tests {
 
     #[test]
     fn test_qs_core() {
+        const N: usize = 200;
         let mut prg = Prg::new();
-        let mut input = vec![false; 100];
+        let mut input = vec![false; N];
         prg.random_bools(&mut input);
-
-        let mut ideal_cot = IdealCOT::default();
-        let mut ideal_vope = IdealVOPE::default();
-
-        let mut delta = ideal_cot.delta();
+        let mut delta = prg.random_block();
         delta.set_lsb();
 
-        ideal_vope.set_delta(delta);
+        let mut ideal_cot = IdealCOT::new(Block::ZERO, delta);
+        let mut ideal_vope = IdealVOPE::new(Block::ZERO, delta);
 
         let mut prover = Prover::new();
         let mut verifier = Verifier::new(delta);
@@ -67,13 +65,19 @@ mod tests {
         let (masks, prover_labels) = prover.auth_input_bits(&input, cot_receiver).unwrap();
 
         let verifier_labels = verifier.auth_input_bits(&masks, cot_sender).unwrap();
+        let input_exp: Vec<bool> = prover_labels.iter().map(|x| x.lsb() == 1).collect();
+        assert_eq!(input, input_exp);
 
         assert_cot(delta, &input, &prover_labels, &verifier_labels);
 
+        let mut output_macs = vec![Block::ZERO; N];
+        let mut output_keys = vec![Block::ZERO; N];
         prover_labels
             .iter()
             .zip(verifier_labels.iter())
-            .for_each(|(&mac, &key)| {
+            .zip(output_macs.iter_mut())
+            .zip(output_keys.iter_mut())
+            .for_each(|(((&mac, &key), output_mac), output_key)| {
                 let (cot_sender, cot_receiver) = ideal_cot.random_correlated(1);
 
                 let RCOTReceiverOutput {
@@ -82,18 +86,24 @@ mod tests {
                     ..
                 } = cot_receiver;
 
-                let (mask, _) = prover.auth_and_gate(mac, mac, (s[0], blks[0]));
+                let (mask, tmp) = prover.auth_and_gate(mac, mac, (s[0], blks[0]));
+                *output_mac = tmp;
 
                 let RCOTSenderOutput { msgs: blks, .. } = cot_sender;
 
-                verifier.auth_and_gate(key, key, mask, blks[0]);
+                *output_key = verifier.auth_and_gate(key, key, mask, blks[0]);
             });
+
+        assert_cot(delta, &input, &output_macs, &output_keys);
 
         let (vope_sender, vope_receiver) = ideal_vope.random_correlated(1);
 
         let (u, v) = prover.check_and_gates(vope_receiver);
 
         verifier.check_and_gates(vope_sender, u, v);
+
+        let hash = prover.finish(&output_macs);
+        verifier.finish(hash, &output_keys, &input).unwrap();
 
         assert!(verifier.checked());
     }

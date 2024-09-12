@@ -47,6 +47,15 @@ pub fn ideal_rcot() -> (IdealCOTSender, IdealCOTReceiver) {
     (IdealCOTSender(alice), IdealCOTReceiver(bob))
 }
 
+/// Returns an ideal random COT sender and receiver with a given delta.
+pub fn ideal_rcot_with_delta(delta: Block) -> (IdealCOTSender, IdealCOTReceiver) {
+    let (alice, bob) = ideal_f2p(IdealCOT::new(
+        mpz_core::prg::Prg::new().random_block(),
+        delta,
+    ));
+    (IdealCOTSender(alice), IdealCOTReceiver(bob))
+}
+
 /// Ideal COT sender.
 #[derive(Debug, Clone, Default)]
 pub struct IdealCOTSender(Alice<IdealCOT>);

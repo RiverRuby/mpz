@@ -49,7 +49,7 @@ impl Prover {
         cot: RCOTReceiverOutput<bool, Block>,
     ) -> Result<(Vec<bool>, Vec<Block>), QsProverError> {
         if cot.choices.len() != inputs.len() {
-            return Err(QsProverError(format!("lengths not match")));
+            return Err(QsProverError("lengths not match".to_string()));
         }
 
         let RCOTReceiverOutput {

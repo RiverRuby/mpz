@@ -3,7 +3,7 @@ use mpz_circuits::{types::Value, Circuit, CircuitError, Gate};
 use mpz_common::{cpu::CpuBackend, Context};
 use mpz_core::Block;
 use mpz_ot::{RCOTReceiverOutput, RandomCOTReceiver};
-use mpz_zk_core::quicksilver::{bools_to_bytes, Prover as ProverCore};
+use mpz_zk_core::quicksilver::Prover as ProverCore;
 use serio::SinkExt;
 
 use super::error::ProverError;
@@ -22,7 +22,8 @@ impl Prover {
             prover_core: ProverCore::new(),
         }
     }
-    /// Authenticate inputs.
+    
+    // Authenticate inputs.
     async fn auth_inputs<Ctx, RCOT>(
         &mut self,
         ctx: &mut Ctx,
@@ -35,14 +36,22 @@ impl Prover {
     {
         let cot = rcot.receive_random_correlated(ctx, inputs.len()).await?;
 
-        let (bits, macs) = self.prover_core.auth_input_bits(&inputs, cot)?;
+        let (bits, macs) = self.prover_core.auth_input_bits(inputs, cot)?;
 
-        ctx.io_mut().send(bools_to_bytes(&bits)).await?;
+        // TODO: optimize sending bools.
+        ctx.io_mut().send(bits).await?;
 
         Ok(macs)
     }
 
-    /// Prove.
+    /// Prove a circuit.
+    ///
+    /// # Arguments.
+    ///
+    /// * `ctx` - The context.
+    /// * `circ` - The circuit.
+    /// * `input_value` - The witness hold by the prover.
+    /// * `rcot` - The ideal RCOT functionality.
     pub async fn prove<Ctx, RCOT>(
         &mut self,
         ctx: &mut Ctx,
@@ -76,7 +85,7 @@ impl Prover {
         }
 
         // Authenticate the circuit.
-        while let Some(gate) = circ.gates().iter().next() {
+        for gate in circ.gates() {
             match gate {
                 Gate::Xor {
                     x: node_x,
@@ -108,6 +117,7 @@ impl Prover {
 
                     let (d, z_0) = self.prover_core.auth_and_gate(x_0, y_0, (bit[0], blk[0]));
 
+                    // TODO: optimize sending bool.
                     ctx.io_mut().send(d).await?;
 
                     self.macs[node_z.id()] = z_0;
@@ -157,7 +167,7 @@ impl Prover {
 
         let v = vope.receive(ctx, rcot, 1).await?;
 
-        let mut prover_core = std::mem::replace(&mut self.prover_core, ProverCore::default());
+        let mut prover_core = std::mem::take(&mut self.prover_core);
 
         let (u, prover_core) =
             CpuBackend::blocking(move || (prover_core.check_and_gates(v), prover_core)).await;
@@ -167,5 +177,12 @@ impl Prover {
 
         self.prover_core = prover_core;
         Ok(())
+    }
+}
+
+impl Default for Prover {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }

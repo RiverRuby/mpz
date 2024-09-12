@@ -130,9 +130,10 @@ impl Block {
     }
 
     /// Generate the powers of the seed.
+    /// Starting with seed.
     #[inline(always)]
     pub fn powers(seed: Self, size: usize) -> Vec<Self> {
-        successors(Some(Block::ONE), |pow| Some(pow.gfmul(seed)))
+        successors(Some(seed), |pow| Some(pow.gfmul(seed)))
             .take(size)
             .collect()
     }
