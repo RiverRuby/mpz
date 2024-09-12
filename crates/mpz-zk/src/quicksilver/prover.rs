@@ -22,7 +22,7 @@ impl Prover {
             prover_core: ProverCore::new(),
         }
     }
-    
+
     // Authenticate inputs.
     async fn auth_inputs<Ctx, RCOT>(
         &mut self,
