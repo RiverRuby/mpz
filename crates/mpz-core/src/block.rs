@@ -108,6 +108,18 @@ impl Block {
         self.0[0] |= 1;
     }
 
+    /// Clears the least significant bit of the block
+    #[inline]
+    pub fn clear_lsb(&mut self) {
+        self.0[0] &= 0xfe;
+    }
+
+    /// XORs the least significant bit of the block with the given value.
+    #[inline]
+    pub fn xor_lsb(&mut self, bit: bool) {
+        self.0[0] ^= bit as u8;
+    }
+
     /// Returns the least significant bit of the block
     #[inline]
     pub fn lsb(&self) -> bool {

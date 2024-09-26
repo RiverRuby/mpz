@@ -3,7 +3,20 @@ name = "mpz-zk-core"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-
 [lints]
 workspace = true
+
+[dependencies]
+mpz-core = { workspace = true }
+mpz-circuits = { workspace = true }
+mpz-memory-core = { workspace = true }
+mpz-vm-core = { workspace = true }
+tlsn-utils = { workspace = true }
+
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+blake3 = { workspace = true, features = ["serde"] }
+
+[dev-dependencies]
+mpz-ot-core = { workspace = true, features = ["test-utils"] }
+rand = { workspace = true }

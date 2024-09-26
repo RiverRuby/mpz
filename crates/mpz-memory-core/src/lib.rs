@@ -1,10 +1,18 @@
 //pub mod binary;
 pub mod correlated;
+pub mod store;
 
 use core::fmt;
-use std::{marker::PhantomData, ops::Range};
+use std::{
+    marker::PhantomData,
+    ops::{Index, IndexMut},
+};
 
+use mpz_core::bitvec::{BitSlice, BitVec};
 use serde::{Deserialize, Serialize};
+
+pub(crate) type RangeSet = utils::range::RangeSet<usize>;
+pub(crate) type Range = std::ops::Range<usize>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssignKind {
@@ -84,7 +92,7 @@ impl Slice {
     ///
     /// Do not use this unless you know what you're doing. It will cause bugs and break security.
     #[inline]
-    pub fn from_range_unchecked(range: Range<usize>) -> Self {
+    pub fn from_range_unchecked(range: Range) -> Self {
         Self {
             ptr: Ptr::new(range.start),
             size: range.len(),
@@ -99,7 +107,7 @@ impl Slice {
 
     /// Returns the memory range of the value.
     #[inline]
-    pub fn to_range(&self) -> Range<usize> {
+    pub fn to_range(&self) -> Range {
         self.ptr.as_usize()..self.ptr.as_usize() + self.size
     }
 }
@@ -110,7 +118,7 @@ impl fmt::Display for Slice {
     }
 }
 
-impl From<Slice> for Range<usize> {
+impl From<Slice> for Range {
     fn from(slice: Slice) -> Self {
         slice.to_range()
     }
@@ -120,6 +128,48 @@ impl Size for Slice {
     #[inline]
     fn size(&self) -> usize {
         self.size
+    }
+}
+
+impl<T> Index<Slice> for [T] {
+    type Output = [T];
+
+    fn index(&self, index: Slice) -> &Self::Output {
+        &self[index.to_range()]
+    }
+}
+
+impl<T> Index<Slice> for Vec<T> {
+    type Output = [T];
+
+    fn index(&self, index: Slice) -> &Self::Output {
+        &self[index.to_range()]
+    }
+}
+
+impl<T> IndexMut<Slice> for [T] {
+    fn index_mut(&mut self, index: Slice) -> &mut Self::Output {
+        &mut self[index.to_range()]
+    }
+}
+
+impl<T> IndexMut<Slice> for Vec<T> {
+    fn index_mut(&mut self, index: Slice) -> &mut Self::Output {
+        &mut self[index.to_range()]
+    }
+}
+
+impl Index<Slice> for BitVec {
+    type Output = BitSlice;
+
+    fn index(&self, index: Slice) -> &Self::Output {
+        &self[index.to_range()]
+    }
+}
+
+impl IndexMut<Slice> for BitVec {
+    fn index_mut(&mut self, index: Slice) -> &mut Self::Output {
+        &mut self[index.to_range()]
     }
 }
 

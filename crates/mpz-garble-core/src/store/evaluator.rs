@@ -5,7 +5,8 @@ use mpz_core::{
     Block,
 };
 use mpz_memory_core::{
-    correlated::{ReceiverStore as Core, ReceiverStoreError as CoreError},
+    correlated::{MacStore, MacStoreError},
+    store::{BitStore, StoreError},
     AssignKind, Size, Slice,
 };
 use mpz_vm_core::{AssignOp, DecodeFuture, DecodeOp};
@@ -22,7 +23,9 @@ type RangeSet = utils::range::RangeSet<usize>;
 
 #[derive(Debug, Default)]
 pub struct EvaluatorStore {
-    inner: Core,
+    mac_store: MacStore,
+    key_bit_store: BitStore,
+    data_store: BitStore,
     buffer_assign: Vec<AssignOp>,
     buffer_decode: Vec<DecodeOp<BitVec>>,
 }
@@ -30,17 +33,24 @@ pub struct EvaluatorStore {
 impl EvaluatorStore {
     /// Allocates uninitialized memory for a value.
     pub fn alloc(&mut self, len: usize) -> Slice {
-        self.inner.alloc(len)
+        self.mac_store.alloc(len);
+        self.key_bit_store.alloc(len);
+        self.data_store.alloc(len)
     }
 
     /// Returns whether the MACs are set for a slice.
     pub fn is_set_macs(&self, slice: Slice) -> bool {
-        self.inner.is_set_macs(slice)
+        self.mac_store.is_set(slice)
+    }
+
+    /// Returns whether the key bits are set for a slice.
+    pub fn is_set_key_bits(&self, slice: Slice) -> bool {
+        self.key_bit_store.is_set(slice)
     }
 
     /// Returns whether the data is set for a slice.
     pub fn is_set_data(&self, slice: Slice) -> bool {
-        self.inner.is_set_data(slice)
+        self.data_store.is_set(slice)
     }
 
     pub fn wants_assign(&self) -> bool {
@@ -50,25 +60,25 @@ impl EvaluatorStore {
     pub fn wants_key_bits(&self) -> bool {
         self.buffer_decode
             .iter()
-            .any(|op| !self.inner.is_set_key_bits(op.slice) && self.inner.is_set_macs(op.slice))
+            .any(|op| !self.key_bit_store.is_set(op.slice) && self.mac_store.is_set(op.slice))
     }
 
     pub fn wants_decode(&self) -> bool {
         self.buffer_decode
             .iter()
-            .any(|op| self.inner.is_set_key_bits(op.slice) && self.inner.is_set_macs(op.slice))
+            .any(|op| self.key_bit_store.is_set(op.slice) && self.mac_store.is_set(op.slice))
     }
 
     pub fn try_get_macs(&self, slice: Slice) -> Result<&[Block]> {
-        self.inner.try_get_macs(slice).map_err(Error::from)
+        self.mac_store.try_get(slice).map_err(Error::from)
     }
 
-    pub fn set_macs(&mut self, slices: &[Slice], macs: &[Block]) -> Result<()> {
-        self.inner.set_macs(slices, macs).map_err(Error::from)
+    pub fn try_set_macs(&mut self, slice: Slice, macs: &[Block]) -> Result<()> {
+        self.mac_store.try_set(slice, macs).map_err(Error::from)
     }
 
     pub fn assign_public(&mut self, slice: Slice, data: &BitSlice) -> Result<()> {
-        self.inner.set_data(&[slice], data)?;
+        self.data_store.try_set(slice, data)?;
 
         self.buffer_assign.push(AssignOp {
             slice,
@@ -79,7 +89,7 @@ impl EvaluatorStore {
     }
 
     pub fn assign_private(&mut self, slice: Slice, data: &BitSlice) -> Result<()> {
-        self.inner.set_data(&[slice], data)?;
+        self.data_store.try_set(slice, data)?;
 
         self.buffer_assign.push(AssignOp {
             slice,
@@ -90,10 +100,6 @@ impl EvaluatorStore {
     }
 
     pub fn assign_blind(&mut self, slice: Slice) -> Result<()> {
-        if self.inner.is_set_macs(slice) {
-            todo!("slice already assigned")
-        }
-
         self.buffer_assign.push(AssignOp {
             slice,
             kind: AssignKind::Blind,
@@ -125,8 +131,8 @@ impl EvaluatorStore {
                 AssignKind::Private => {
                     oblivious.push(op.slice);
                     choices.extend(
-                        self.inner
-                            .try_get_data(op.slice)
+                        self.data_store
+                            .try_get(op.slice)
                             .expect("data should be set")
                             .into_iter()
                             .map(|bit| *bit),
@@ -149,12 +155,13 @@ impl EvaluatorStore {
     pub fn receive_key_bits(&mut self, payload: DecodePayload) -> Result<()> {
         let DecodePayload { idx, key_bits } = payload;
 
-        let slices = idx
-            .iter_ranges()
-            .map(Slice::from_range_unchecked)
-            .collect::<Vec<_>>();
-
-        self.inner.set_key_bits(&slices, &key_bits)?;
+        let mut i = 0;
+        for range in idx.iter_ranges() {
+            let slice = Slice::from_range_unchecked(range);
+            self.key_bit_store
+                .try_set(slice, &key_bits[i..i + slice.size()])?;
+            i += slice.size();
+        }
 
         Ok(())
     }
@@ -163,26 +170,23 @@ impl EvaluatorStore {
     ///
     /// Returns MAC proof to send to the generator.
     pub fn execute_decode(&mut self) -> Result<MacPayload> {
-        let slices = self
-            .buffer_decode
-            .filter_drain(|op| {
-                if let Ok(data) = self.inner.try_get_data(op.slice) {
-                    op.send(data.to_bitvec()).unwrap();
-                    true
-                } else {
-                    false
-                }
-            })
-            .map(|op| op.slice)
-            .collect::<Vec<_>>();
+        let idx = RangeSet::from(
+            self.buffer_decode
+                .filter_drain(|op| {
+                    if let Ok(data) = self.data_store.try_get(op.slice) {
+                        op.send(data.to_bitvec()).unwrap();
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .map(|op| op.slice.to_range())
+                .collect::<Vec<_>>(),
+        );
 
-        let (bits, proof) = self.inner.prove(slices.iter().copied())?;
+        let (bits, proof) = self.mac_store.prove(&idx)?;
 
-        Ok(MacPayload {
-            idx: RangeSet::from(slices.into_iter().map(From::from).collect::<Vec<_>>()),
-            bits,
-            proof,
-        })
+        Ok(MacPayload { idx, bits, proof })
     }
 }
 
@@ -227,10 +231,23 @@ impl ReceiveAssign<'_> {
             todo!()
         }
 
-        self.store.inner.set_macs(&self.direct, &macs)?;
-        self.store
-            .inner
-            .set_macs(&self.oblivious, &oblivious_macs)?;
+        let mut i = 0;
+        for range in direct.iter_ranges() {
+            let slice = Slice::from_range_unchecked(range);
+            self.store
+                .mac_store
+                .try_set(slice, &macs[i..i + slice.size()])?;
+            i += slice.size();
+        }
+
+        i = 0;
+        for range in oblivious.iter_ranges() {
+            let slice = Slice::from_range_unchecked(range);
+            self.store
+                .mac_store
+                .try_set(slice, &oblivious_macs[i..i + slice.size()])?;
+            i += slice.size();
+        }
 
         Ok(())
     }
@@ -240,8 +257,14 @@ impl ReceiveAssign<'_> {
 #[error("evaluator store error")]
 pub struct EvaluatorStoreError {}
 
-impl From<CoreError> for EvaluatorStoreError {
-    fn from(err: CoreError) -> Self {
+impl From<MacStoreError> for EvaluatorStoreError {
+    fn from(err: MacStoreError) -> Self {
+        todo!()
+    }
+}
+
+impl From<StoreError> for EvaluatorStoreError {
+    fn from(err: StoreError) -> Self {
         todo!()
     }
 }

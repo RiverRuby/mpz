@@ -1,16 +1,17 @@
 mod decode;
 
 pub use decode::{DecodeFuture, DecodeOp};
-use utils::filter_drain::FilterDrain;
 
 use std::sync::Arc;
 
 use mpz_circuits::Circuit;
 use mpz_memory_core::{AssignKind, Size, Slice};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AssignOp {
+    /// Memory slice.
     pub slice: Slice,
+    /// Assign kind.
     pub kind: AssignKind,
 }
 

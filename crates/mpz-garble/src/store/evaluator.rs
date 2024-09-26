@@ -40,7 +40,7 @@ impl EvaluatorStore {
     }
 
     pub fn set_output(&mut self, slice: Slice, macs: &[Block]) -> Result<()> {
-        self.inner.set_macs(&[slice], macs).map_err(Error::from)
+        self.inner.try_set_macs(slice, macs).map_err(Error::from)
     }
 
     pub fn assign_public(&mut self, slice: Slice, data: &BitSlice) -> Result<()> {

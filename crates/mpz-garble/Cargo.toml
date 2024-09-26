@@ -11,7 +11,7 @@ name = "mpz_garble"
 
 [features]
 default = ["mock"]
-rayon = ["mpz-common/rayon"]
+rayon = ["mpz-common/rayon", "mpz-garble-core/rayon"]
 mock = ["mpz-ot/ideal"]
 
 [dependencies]

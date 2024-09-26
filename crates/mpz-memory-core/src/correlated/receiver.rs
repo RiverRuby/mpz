@@ -98,6 +98,42 @@ impl ReceiverStore {
         slice
     }
 
+    /// Allocates memory with data and corresponding MACs.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of the MACs is not equal to the length of the data.
+    pub fn alloc_with(&mut self, data: &BitSlice, macs: &[Block]) -> Slice {
+        assert_eq!(
+            data.len(),
+            macs.len(),
+            "data length does not match MACs length"
+        );
+
+        let len = macs.len();
+        let ptr = Ptr::new(self.macs.len());
+        let slice = Slice::new_unchecked(ptr, len);
+
+        let mut key_bits = data.to_bitvec();
+        key_bits
+            .iter_mut()
+            .zip(data)
+            .zip(macs)
+            .for_each(|((mut key, data), mac)| {
+                key.set(mac.lsb() ^ *data);
+            });
+
+        self.macs.extend_from_slice(macs);
+        self.key_bits.extend_from_bitslice(&key_bits);
+        self.data.extend_from_bitslice(data);
+
+        self.mark_set_macs(slice);
+        self.mark_set_key_bits(slice);
+        self.mark_set_data(slice);
+
+        slice
+    }
+
     /// Sets MACs.
     ///
     /// Returns an error if the MACs are already set.

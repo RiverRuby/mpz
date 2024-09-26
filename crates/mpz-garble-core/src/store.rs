@@ -232,7 +232,7 @@ mod tests {
 
         let a = ev.alloc(128);
 
-        ev.set_macs(&[a], &[Block::default(); 128]).unwrap();
+        ev.try_set_macs(a, &[Block::default(); 128]).unwrap();
 
         _ = ev.decode(a).unwrap();
 
@@ -282,7 +282,7 @@ mod tests {
         let payload = gen.send_key_bits().unwrap();
 
         let a = ev.alloc(128);
-        ev.set_macs(&[a], &[Block::default(); 128]).unwrap();
+        ev.try_set_macs(a, &[Block::default(); 128]).unwrap();
         ev.receive_key_bits(payload).unwrap();
         _ = ev.decode(a).unwrap();
 
