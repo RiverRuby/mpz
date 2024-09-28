@@ -110,6 +110,16 @@ impl Slice {
     pub fn to_range(&self) -> Range {
         self.ptr.as_usize()..self.ptr.as_usize() + self.size
     }
+
+    /// Returns a `RangeSet` of the slices.
+    pub fn to_rangeset(slices: impl IntoIterator<Item = Self>) -> RangeSet {
+        RangeSet::from(
+            slices
+                .into_iter()
+                .map(|slice| slice.to_range())
+                .collect::<Vec<_>>(),
+        )
+    }
 }
 
 impl fmt::Display for Slice {

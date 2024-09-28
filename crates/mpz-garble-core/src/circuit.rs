@@ -26,13 +26,6 @@ impl EncryptedGate {
     pub(crate) fn new(inner: [Block; 2]) -> Self {
         Self(inner)
     }
-
-    pub(crate) fn to_bytes(self) -> [u8; 32] {
-        let mut bytes = [0u8; 32];
-        bytes[..16].copy_from_slice(&self.0[0].to_bytes());
-        bytes[16..].copy_from_slice(&self.0[1].to_bytes());
-        bytes
-    }
 }
 
 impl Index<usize> for EncryptedGate {

@@ -6,7 +6,7 @@ use mpz_core::{
 
 use crate::{
     store::{Store, StoreError},
-    Range, RangeSet, Slice,
+    RangeSet, Slice,
 };
 
 type Result<T> = core::result::Result<T, MacStoreError>;

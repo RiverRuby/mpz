@@ -3,7 +3,6 @@ use utils::range::{Subset, Union};
 
 use crate::{Ptr, Slice};
 
-type Range = std::ops::Range<usize>;
 type RangeSet = utils::range::RangeSet<usize>;
 type Result<T> = core::result::Result<T, StoreError>;
 

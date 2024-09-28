@@ -10,10 +10,7 @@ use mpz_memory_core::{
     AssignKind, Size, Slice,
 };
 use mpz_vm_core::{AssignOp, DecodeFuture, DecodeOp};
-use utils::{
-    filter_drain::FilterDrain,
-    range::{Difference, Union},
-};
+use utils::filter_drain::FilterDrain;
 
 use crate::store::{AssignPayload, DecodePayload, MacPayload};
 

@@ -93,10 +93,10 @@ impl KeyStore {
     }
 
     /// Returns the pointer bits of the keys if they are set.
-    pub fn try_get_bits(&self, slice: Slice) -> Result<BitVec> {
+    pub fn try_get_bits(&self, slice: Slice) -> Result<impl Iterator<Item = bool> + '_> {
         self.keys
             .try_get(slice)
-            .map(|keys| BitVec::from_iter(keys.iter().map(|key| key.lsb())))
+            .map(|keys| keys.iter().map(|key| key.lsb()))
             .map_err(From::from)
     }
 

@@ -1,7 +1,6 @@
 use core::fmt;
 use std::sync::Arc;
 
-use blake3::Hasher;
 use cfg_if::cfg_if;
 
 use crate::{circuit::EncryptedGate, EncryptedGateBatch, GarbledCircuit, DEFAULT_BATCH_SIZE};
@@ -11,7 +10,6 @@ use mpz_circuits::{
 };
 use mpz_core::{
     aes::{FixedKeyAes, FIXED_KEY_AES},
-    hash::Hash,
     Block,
 };
 

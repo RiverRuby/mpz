@@ -26,23 +26,32 @@
 //! presented with a MAC `M` alone learns nothing about `x`.
 //!
 //! Notice also that this can be viewed as an additive secret sharing of the value `x`, where the Sender holds
-//! `LSB(k)` and the Receiver holds `LSB(M)` such that `x = LSB(k) + LSB(M)`.
+//! `LSB(k)` and the Receiver holds `LSB(M)` such that `x = LSB(k) ^ LSB(M)`.
+//!
+//! # Derandomization
+//!
+//! During the offline-phase, the Sender and Receiver can compute MACs on random values provided by the
+//! Receiver and later derandomize them.
+//!
+//! For example, given a MAC `M = k + r * Δ` where `r` is a random value known only to the Receiver, the Receiver can obtain a
+//! MAC on the value `x` by sending `d = x ^ r`.
+//!
+//! The Sender then adjusts their key `k` by computing `k = k + d * Δ` and sets `LSB(k) = 0`.
+//!
+//! The Receiver adjusts their MAC by setting `LSB(M) = x`.
+//!
+//! In the end, the relationships hold `M = k + x * Δ` and `LSB(M) = LSB(k) ^ x`.
 
 mod keys;
 mod macs;
-mod receiver;
 
 use std::ops::BitXor;
 
 pub use keys::{KeyStore, KeyStoreError};
 pub use macs::{MacStore, MacStoreError};
-pub use receiver::{ReceiverStore, ReceiverStoreError};
 
 use mpz_core::Block;
 use rand::{distributions::Standard, prelude::Distribution, CryptoRng, Rng};
-use utils::range::{Disjoint, Subset};
-
-use crate::{store::Store, Range, RangeSet};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Delta(Block);
@@ -51,7 +60,7 @@ impl Delta {
     /// Creates a new Delta, setting the pointer bit to 1.
     #[inline]
     pub fn new(mut value: Block) -> Self {
-        value.set_lsb();
+        value.set_lsb(true);
         Self(value)
     }
 
@@ -158,60 +167,75 @@ impl BitXor<&Delta> for &Block {
 
 #[cfg(test)]
 mod tests {
-    use mpz_core::bitvec::BitVec;
     use mpz_ot_core::{ideal::cot::IdealCOT, COTReceiverOutput};
     use rand::{rngs::StdRng, SeedableRng};
 
+    use crate::Slice;
+
     use super::*;
 
-    // #[test]
-    // fn test_correlated_store() {
-    //     let mut cot = IdealCOT::default();
-    //     let mut rng = StdRng::seed_from_u64(0);
-    //     let delta = Delta::random(&mut rng);
-    //     cot.set_delta(delta.into_inner());
+    type BitVec = mpz_core::bitvec::BitVec<u32>;
 
-    //     let mut sender = SenderStore::new(delta);
-    //     let mut receiver = ReceiverStore::default();
+    #[test]
+    fn test_correlated_store() {
+        let mut cot = IdealCOT::default();
+        let mut rng = StdRng::seed_from_u64(0);
+        let delta = Delta::random(&mut rng);
+        cot.set_delta(delta.into_inner());
 
-    //     let val_a = BitVec::from_iter((0..128).map(|_| rng.gen::<bool>()));
-    //     let val_b = BitVec::from_iter((0..128).map(|_| rng.gen::<bool>()));
+        let mut keys = KeyStore::new(delta);
+        let mut macs = MacStore::default();
 
-    //     let ref_a_sender = sender.alloc_with(&Block::random_vec(&mut rng, 128));
-    //     let ref_b_sender = sender.alloc_with(&Block::random_vec(&mut rng, 128));
+        let val_a = BitVec::from_iter((0..128).map(|_| rng.gen::<bool>()));
+        let val_b = BitVec::from_iter((0..128).map(|_| rng.gen::<bool>()));
 
-    //     let ref_a_receiver = receiver.alloc(128);
-    //     let ref_b_receiver = receiver.alloc(128);
+        let ref_a_keys = keys.alloc_with(&Block::random_vec(&mut rng, 128));
+        let ref_b_keys = keys.alloc_with(&Block::random_vec(&mut rng, 128));
 
-    //     sender.set_data(&[ref_a_sender], &val_a).unwrap();
+        let ref_a_macs = macs.alloc(128);
+        let ref_b_macs = macs.alloc(128);
 
-    //     let macs_a = sender.get_macs([ref_a_sender]).unwrap();
-    //     let keys_b = sender.oblivious_transfer([ref_b_sender]).unwrap();
+        let macs_a = keys
+            .authenticate(ref_a_keys, &val_a)
+            .unwrap()
+            .collect::<Vec<_>>();
+        let keys_b = keys.oblivious_transfer(ref_b_keys).unwrap().to_vec();
 
-    //     let (_, COTReceiverOutput { msgs: macs_b, .. }) =
-    //         cot.correlated(keys_b, val_b.iter().by_vals().collect());
+        let (_, COTReceiverOutput { msgs: macs_b, .. }) =
+            cot.correlated(keys_b, val_b.iter().by_vals().collect());
 
-    //     receiver.set_macs(&[ref_a_receiver], &macs_a).unwrap();
-    //     receiver.set_macs(&[ref_b_receiver], &macs_b).unwrap();
+        macs.try_set(ref_a_macs, &macs_a).unwrap();
+        macs.try_set(ref_b_macs, &macs_b).unwrap();
 
-    //     assert!(sender.is_set_keys(ref_a_sender));
-    //     assert!(sender.is_set_keys(ref_b_sender));
-    //     assert!(receiver.is_set_macs(ref_a_receiver));
-    //     assert!(receiver.is_set_macs(ref_b_receiver));
+        assert!(keys.is_set(ref_a_keys));
+        assert!(keys.is_set(ref_b_keys));
+        assert!(macs.is_set(ref_a_macs));
+        assert!(macs.is_set(ref_b_macs));
 
-    //     let key_bits = sender.key_bits([ref_a_sender, ref_b_sender]).unwrap();
-    //     receiver
-    //         .set_key_bits(&[ref_a_receiver, ref_b_receiver], &key_bits)
-    //         .unwrap();
+        let key_bits_a = BitVec::from_iter(keys.try_get_bits(ref_a_keys).unwrap());
+        let key_bits_b = BitVec::from_iter(keys.try_get_bits(ref_b_keys).unwrap());
 
-    //     let (mac_bits, hash) = receiver.prove([ref_a_receiver, ref_b_receiver]).unwrap();
-    //     sender
-    //         .verify([ref_a_sender, ref_b_sender], mac_bits, hash)
-    //         .unwrap();
+        let mac_bits_a = BitVec::from_iter(macs.try_get_bits(ref_a_macs).unwrap());
+        let mac_bits_b = BitVec::from_iter(macs.try_get_bits(ref_b_macs).unwrap());
 
-    //     assert_eq!(sender.try_get_data(ref_a_sender).unwrap(), &val_a);
-    //     assert_eq!(sender.try_get_data(ref_b_sender).unwrap(), &val_b);
-    //     assert_eq!(receiver.try_get_data(ref_a_receiver).unwrap(), &val_a);
-    //     assert_eq!(receiver.try_get_data(ref_b_receiver).unwrap(), &val_b);
-    // }
+        let val_a_recovered = key_bits_a ^ mac_bits_a;
+        let val_b_recovered = key_bits_b ^ mac_bits_b;
+
+        assert_eq!(val_a, val_a_recovered);
+        assert_eq!(val_b, val_b_recovered);
+
+        let (mut bits, hash) = macs
+            .prove(&Slice::to_rangeset([ref_a_macs, ref_b_macs]))
+            .unwrap();
+
+        keys.verify(
+            &Slice::to_rangeset([ref_a_keys, ref_b_keys]),
+            &mut bits,
+            hash,
+        )
+        .unwrap();
+
+        assert_eq!(&val_a, &bits[0..128]);
+        assert_eq!(&val_b, &bits[128..]);
+    }
 }

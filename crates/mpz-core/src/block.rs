@@ -104,14 +104,8 @@ impl Block {
 
     /// Sets the least significant bit of the block
     #[inline]
-    pub fn set_lsb(&mut self) {
-        self.0[0] |= 1;
-    }
-
-    /// Clears the least significant bit of the block
-    #[inline]
-    pub fn clear_lsb(&mut self) {
-        self.0[0] &= 0xfe;
+    pub fn set_lsb(&mut self, value: bool) {
+        self.0[0] |= value as u8;
     }
 
     /// XORs the least significant bit of the block with the given value.
@@ -372,12 +366,12 @@ mod tests {
         three[0] = 3;
 
         let mut b = Block::new(zero);
-        b.set_lsb();
+        b.set_lsb(true);
         assert_eq!(Block::new(one), b);
 
         // no-op when the bit is already set
         let mut b = Block::new(three);
-        b.set_lsb();
+        b.set_lsb(false);
         assert_eq!(Block::new(three), b);
     }
 

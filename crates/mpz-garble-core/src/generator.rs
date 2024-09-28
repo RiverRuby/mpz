@@ -1,7 +1,5 @@
 use core::fmt;
 
-use blake3::Hasher;
-
 use crate::{circuit::EncryptedGate, EncryptedGateBatch, DEFAULT_BATCH_SIZE};
 use mpz_circuits::{
     types::{BinaryRepr, TypeError},
@@ -9,7 +7,6 @@ use mpz_circuits::{
 };
 use mpz_core::{
     aes::{FixedKeyAes, FIXED_KEY_AES},
-    hash::Hash,
     Block,
 };
 use mpz_memory_core::correlated::Delta;

@@ -9,12 +9,10 @@ use mpz_memory_core::{
     AssignKind, Size, Slice,
 };
 use mpz_vm_core::{AssignOp, DecodeFuture, DecodeOp};
-use rand::Rng;
 use utils::{filter_drain::FilterDrain, range::RangeSet};
 
 use crate::store::{AssignPayload, DecodePayload, MacPayload};
 
-type Range = core::ops::Range<usize>;
 type Error = GeneratorStoreError;
 type Result<T> = core::result::Result<T, Error>;
 
@@ -206,7 +204,7 @@ impl GeneratorStore {
 
         let mut key_bits = BitVec::new();
         for slice in &idx {
-            key_bits.extend_from_bitslice(&self.key_store.try_get_bits(*slice)?);
+            key_bits.extend(self.key_store.try_get_bits(*slice)?);
         }
 
         Ok(DecodePayload {
