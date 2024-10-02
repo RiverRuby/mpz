@@ -5,7 +5,7 @@ use clmul::Clmul;
 use core::ops::{BitAnd, BitAndAssign, BitXor, BitXorAssign};
 use generic_array::{typenum::consts::U16, GenericArray};
 use itybity::{BitIterable, BitLength, GetBit, Lsb0, Msb0};
-use rand::{distributions::Standard, prelude::Distribution, CryptoRng, Rng};
+use rand::{distributions::Standard, prelude::Distribution, CryptoRng, Fill, Rng};
 use serde::{Deserialize, Serialize};
 
 /// A block of 128 bits
@@ -104,14 +104,20 @@ impl Block {
 
     /// Sets the least significant bit of the block
     #[inline]
-    pub fn set_lsb(&mut self) {
-        self.0[0] |= 1;
+    pub fn set_lsb(&mut self, value: bool) {
+        self.0[0] |= value as u8;
+    }
+
+    /// XORs the least significant bit of the block with the given value.
+    #[inline]
+    pub fn xor_lsb(&mut self, bit: bool) {
+        self.0[0] ^= bit as u8;
     }
 
     /// Returns the least significant bit of the block
     #[inline]
-    pub fn lsb(&self) -> usize {
-        ((self.0[0] & 1) == 1) as usize
+    pub fn lsb(&self) -> bool {
+        (self.0[0] & 1) == 1
     }
 
     /// Let `x0` and `x1` be the lower and higher halves of `x`, respectively.
@@ -261,6 +267,30 @@ impl BitXor for Block {
     }
 }
 
+impl BitXor<&Block> for Block {
+    type Output = Block;
+
+    fn bitxor(self, rhs: &Self) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] ^ rhs.0[i]))
+    }
+}
+
+impl BitXor<Block> for &Block {
+    type Output = Block;
+
+    fn bitxor(self, rhs: Block) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] ^ rhs.0[i]))
+    }
+}
+
+impl BitXor<&Block> for &Block {
+    type Output = Block;
+
+    fn bitxor(self, rhs: &Block) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] ^ rhs.0[i]))
+    }
+}
+
 impl BitXorAssign for Block {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: Self) {
@@ -274,6 +304,30 @@ impl BitAnd for Block {
     #[inline]
     fn bitand(self, other: Self) -> Self::Output {
         Self(std::array::from_fn(|i| self.0[i] & other.0[i]))
+    }
+}
+
+impl BitAnd<&Block> for Block {
+    type Output = Block;
+
+    fn bitand(self, rhs: &Self) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] & rhs.0[i]))
+    }
+}
+
+impl BitAnd<Block> for &Block {
+    type Output = Block;
+
+    fn bitand(self, rhs: Block) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] & rhs.0[i]))
+    }
+}
+
+impl BitAnd<&Block> for &Block {
+    type Output = Block;
+
+    fn bitand(self, rhs: &Block) -> Self::Output {
+        Block(std::array::from_fn(|i| self.0[i] & rhs.0[i]))
     }
 }
 
@@ -312,37 +366,37 @@ mod tests {
         three[0] = 3;
 
         let mut b = Block::new(zero);
-        b.set_lsb();
+        b.set_lsb(true);
         assert_eq!(Block::new(one), b);
 
         // no-op when the bit is already set
         let mut b = Block::new(three);
-        b.set_lsb();
+        b.set_lsb(false);
         assert_eq!(Block::new(three), b);
     }
 
     #[test]
     fn test_lsb() {
         let a = Block::new([0; 16]);
-        assert_eq!(a.lsb(), 0);
+        assert_eq!(a.lsb(), false);
 
         let mut one = [0; 16];
         one[0] = 1;
 
         let a = Block::new(one);
-        assert_eq!(a.lsb(), 1);
+        assert_eq!(a.lsb(), true);
 
         let mut two = [0; 16];
         two[0] = 2;
 
         let a = Block::new(two);
-        assert_eq!(a.lsb(), 0);
+        assert_eq!(a.lsb(), false);
 
         let mut three = [0; 16];
         three[0] = 3;
 
         let a = Block::new(three);
-        assert_eq!(a.lsb(), 1);
+        assert_eq!(a.lsb(), true);
     }
 
     #[test]

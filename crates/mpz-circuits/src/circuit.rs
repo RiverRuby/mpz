@@ -41,6 +41,16 @@ impl Circuit {
         &self.outputs
     }
 
+    /// Returns the input length of the circuit in bits.
+    pub fn input_len(&self) -> usize {
+        self.inputs.iter().map(|input| input.len()).sum()
+    }
+
+    /// Returns the output length of the circuit in bits.
+    pub fn output_len(&self) -> usize {
+        self.outputs.iter().map(|output| output.len()).sum()
+    }
+
     /// Returns a reference to the gates of the circuit.
     pub fn gates(&self) -> &[Gate] {
         &self.gates
